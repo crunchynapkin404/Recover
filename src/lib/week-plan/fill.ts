@@ -16,7 +16,7 @@ import {
 } from "@/lib/training-plan";
 import { TYPE_BY_PURPOSE, admits, buildSlots } from "./slots";
 import type { AdjustmentRecord, DaySlot } from "./types";
-import { blockIdxOf, blockPlacement } from "./placement";
+import { blockIdxOf, blockPlacement, isAthleteChosen } from "./placement";
 
 /**
  * How long fill may make a session of this purpose, in this sport — or null
@@ -225,6 +225,10 @@ export function fillWeek(
 
     for (let j = 0; j < day.workouts.length && planned < opts.targetMins; j++) {
       const workout = day.workouts[j];
+      // The fill rung grows the engine's own sessions into room their blocks
+      // gained. The athlete set this one's length deliberately; growing it
+      // toward a week target they never asked about is the engine writing.
+      if (isAthleteChosen(workout)) continue;
       const ceiling = fillCeilingMins(
         workout.purpose,
         workout.sport,

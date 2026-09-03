@@ -16,7 +16,7 @@ import {
 import { findBlockFor, fitToBlock } from "./slots";
 import { blockMins } from "@/lib/availability/types";
 import { withPurpose, type PlannedWorkout } from "@/lib/training-plan";
-import { blockIdxOf, blockPlacement } from "./placement";
+import { blockIdxOf, blockPlacement, isAthleteChosen } from "./placement";
 
 export interface AdaptDayInput {
   week: WeekState;
@@ -164,6 +164,10 @@ function handleMissedYesterday(
     // in adaptDay below). Without this, a missed ride's minutes grew a
     // day's lift — a fabricated duration against an unchanged prescription.
     if (w.purpose === "strength") continue;
+    // The athlete chose this session's length; redistribution is the engine
+    // reshaping its OWN plan around a missed day. It occupies no block, so
+    // blockCapacity would be 0 and Math.min would starve it to zero minutes.
+    if (isAthleteChosen(w)) continue;
     const cap = Math.round(w.durationMins * (1 + DAY_REDISTRIBUTE_CAP_PCT));
     const wBlockIdx = blockIdxOf(w.placement);
     const block = wBlockIdx == null ? undefined : d.availableBlocks[wBlockIdx];
@@ -279,7 +283,12 @@ function fitAvailability(
   adjustments: AdjustmentRecord[]
 ): void {
   const today = week.days[todayIdx];
-  const todayWorkout = today.workouts[0] ?? null;
+  // The FIRST ENGINE-PLACED session, not simply the first. An athlete-placed
+  // session occupies no block, so blockFits is false for it by construction
+  // and this rung would shrink, move or drop it every single time. Skipping
+  // to its sibling keeps immunity per-session: a day holding the athlete's
+  // ride still gets its engine session fitted normally.
+  const todayWorkout = today.workouts.find((w) => !isAthleteChosen(w)) ?? null;
   if (
     !todayWorkout ||
     blockFits(today, todayWorkout.placement, todayWorkout.durationMins)
@@ -408,7 +417,10 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
   }
 
   const day = week.days[todayIdx];
-  const tWorkout = day.workouts[0] ?? null;
+  // Again the first ENGINE-PLACED session. Readiness adaptation reshapes the
+  // engine's own prescription; the athlete's pick is theirs. Recover records
+  // its disagreement instead (keptNote) and leaves the session standing.
+  const tWorkout = day.workouts.find((w) => !isAthleteChosen(w)) ?? null;
   if (tWorkout && (input.band === "red" || input.band === "amber")) {
     // Snapshot the ORIGINAL session before any mutation below — this is
     // what the next run must derive from, not whatever we're about to

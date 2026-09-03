@@ -5,7 +5,7 @@
 import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
 import type { PlannedWorkout } from "@/lib/training-plan";
 import { admits, buildSlots, fitToBlock, slotKey, type Slot } from "./slots";
-import { blockIdxOf, blockPlacement } from "./placement";
+import { blockIdxOf, blockPlacement, isAthleteChosen } from "./placement";
 import { fillWeek, type FillOptions } from "./fill";
 import type {
   AdjustmentRecord,
@@ -80,6 +80,14 @@ export function replanWeek(
     if (locked(d)) return;
     const keep: ScheduledWorkout[] = [];
     for (const w of d.workouts) {
+      // The athlete's own pick occupies no availability block, so the
+      // displacement test below — "does its block still hold it?" — has no
+      // answer for it and would hand every one of them to the drop rung.
+      // The engine reads these sessions and never writes them.
+      if (isAthleteChosen(w)) {
+        keep.push(w);
+        continue;
+      }
       const wBlockIdx = blockIdxOf(w.placement);
       const block =
         wBlockIdx == null ? undefined : d.availableBlocks[wBlockIdx];

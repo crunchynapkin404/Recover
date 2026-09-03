@@ -32,7 +32,7 @@ import type { PlanStyle } from "@/lib/plan-style/types";
 import type { ReentryStage, SeasonMode } from "@/lib/season-mode/types";
 import { resolvePlanningSurfaceState } from "@/lib/planning-surface/effective-state";
 import type { Figure } from "@/lib/uncertainty";
-import { blockPlacement } from "./placement";
+import { blockPlacement, isAthleteChosen } from "./placement";
 import { normalizeDays, serializeDays } from "./serialize";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
@@ -822,6 +822,12 @@ export async function moveWorkout(
 
   const from = week.days[fromIdx];
   const to = week.days[toIdx];
+  // An athlete-placed session is refused here rather than moved. It occupies
+  // no availability block, so re-placing it into one would quietly convert
+  // the athlete's own choice back into an engine session. They remove it and
+  // add another instead.
+  if (from.workouts.some(isAthleteChosen) || to.workouts.some(isAthleteChosen))
+    return "invalid";
   // A day can now genuinely hold two sessions (MAX_SESSIONS_PER_DAY). This
   // signature only names a day, not which of its sessions to move, so a
   // multi-session source is refused rather than guessed at — and moving one
@@ -899,6 +905,12 @@ export async function swapWorkouts(
 
   const from = week.days[fromIdx];
   const to = week.days[toIdx];
+  // An athlete-placed session is refused here rather than swapd. It occupies
+  // no availability block, so re-placing it into one would quietly convert
+  // the athlete's own choice back into an engine session. They remove it and
+  // add another instead.
+  if (from.workouts.some(isAthleteChosen) || to.workouts.some(isAthleteChosen))
+    return "invalid";
   // Same conservative refusal as moveWorkout: swapping a specific session
   // out of a multi-session day needs the caller to say which one, which
   // this signature cannot express, so refuse rather than guess and strand
