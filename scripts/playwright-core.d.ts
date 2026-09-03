@@ -10,4 +10,6 @@ declare module "playwright-core" {
   export type Browser = any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export type Page = any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  export type Response = any;
 }
