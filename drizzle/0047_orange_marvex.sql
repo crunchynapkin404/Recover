@@ -1,0 +1,1 @@
+ALTER TABLE "body_prefs" ADD COLUMN "anchor_prompt_dismissed_at" timestamp with time zone;

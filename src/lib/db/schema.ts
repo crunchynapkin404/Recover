@@ -618,6 +618,26 @@ export const bodyPrefs = pgTable("body_prefs", {
    */
   thresholdPaceSecPerKm: integer("threshold_pace_sec_per_km"),
   /**
+   * v0.134: when the athlete said "not now" to the anchor prompt on Today.
+   * null = never asked, or asked and not yet answered.
+   *
+   * Lives on this row rather than in a table of its own because the state is
+   * about THIS ROW's own emptiness. A timestamp rather than a boolean
+   * because it costs the same and answers "when" for free.
+   *
+   * Dismissing removes the NAG, never the INFORMATION: the settings badge
+   * keeps naming the gap and every Low-confidence "Set it" link keeps
+   * working. See src/lib/anchors-needed.ts.
+   *
+   * CONSEQUENCE, recorded because a production count was run the day before
+   * this landed: dismissing CREATES a body_prefs row, so row existence stops
+   * meaning "has set something". Any future count of who has anchors must
+   * read the anchor columns, not `select count(*) from body_prefs`.
+   */
+  anchorPromptDismissedAt: timestamp("anchor_prompt_dismissed_at", {
+    withTimezone: true,
+  }),
+  /**
    * v0.119: per-lift one-rep maxima, in kilograms. null = not set, which
    * makes that ONE lift refuse a load target — the other lifts in the same
    * session still prescribe normally. The resistance-training analogue of

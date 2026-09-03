@@ -162,3 +162,30 @@ export async function setBodyPrefs(input: {
   revalidatePath("/");
   return { ok: true };
 }
+
+/**
+ * "Not now" on Today's anchor prompt.
+ *
+ * Removes the NAG, never the INFORMATION: the settings badge keeps naming
+ * the gap and every Low-confidence "Set it" link keeps working, forever.
+ * Dismiss answers "stop asking me on Today", not "tell me my numbers are
+ * fine" — an athlete who dismissed and then wondered why a figure says Low
+ * must still be able to find the reason.
+ *
+ * Upserts, because two of three production users have no body_prefs row at
+ * all and the prompt is aimed squarely at them.
+ */
+export async function dismissAnchorPrompt(): Promise<void> {
+  const user = await requireUser();
+  const dismissed = { anchorPromptDismissedAt: new Date() };
+  await db
+    .insert(schema.bodyPrefs)
+    .values({ userId: user.id, ...dismissed })
+    .onConflictDoUpdate({
+      target: schema.bodyPrefs.userId,
+      set: dismissed,
+    });
+
+  revalidatePath("/");
+  revalidatePath("/settings");
+}
