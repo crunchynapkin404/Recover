@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v0.135.0**. History through v0.119 is preserved in
+Current release: **v0.136.0**. History through v0.119 is preserved in
 [`docs/archive/ROADMAP-through-v0.119.md`](archive/ROADMAP-through-v0.119.md) —
 Phases 1–4, all complete. It is a record, not a plan.
 
@@ -414,6 +414,32 @@ week`, `Plan setup`, `Races`, `Availability` and the 21-row draft
       fail for the first time since v0.99.
       Zero confirmed axe violations throughout; the ceiling has never been
       raised.
+
+- [x] **Pick your own ride.** The athlete asked for it in these words: "add
+      access to the library to select a training on a day myself when not
+      getting assigned one and i still want to do one". **Shipped v0.136.0.**
+      Spec: `docs/specs/2026-09-03-athlete-chosen-workouts-design.md`.
+      Demand pillar, not science: it claims nothing new about training, and
+      the recommendation that orders the library only re-applies judgements
+      the engine already makes (adaptDay's red substitution and amber
+      step-down, the no-quality-on-consecutive-days rule, the library's own
+      family rotation, materializeWeek's week target). Every weight it added
+      is `Confidence: Low` and says what would raise it.
+      **The athlete's own correction reshaped the design mid-brainstorm** and
+      is the reason this is a type change rather than a form: availability is
+      the auto-assigner's input, so a pick must place a session without
+      writing an availability block. `ScheduledWorkout.blockIdx` became a
+      `Placement` union across 146 sites, and the engine now reads
+      athlete-placed sessions without ever writing them.
+      **Recover disagrees out loud rather than overruling.** A quality pick on
+      a red band, or any pick on a `pre_race` rest day, writes a `kept`
+      adjustment and leaves the session standing. That is the structured-
+      workouts strand's own open question — "a prescription pinned in the
+      morning and adapted at noon has to re-prescribe, or be pinned
+      deliberately and marked stale" — answered as _pinned deliberately_.
+      **Not a substitution for the goal.** This does not close Phase 7, touch
+      a confidence label, or claim the calibration those need; it is
+      experience work that happens to sit next to them.
 
 **Constraint carried from Phase 2b:** zero confirmed axe violations is a
 ratchet, not a milestone. No experience work may regress it.
