@@ -29,26 +29,40 @@ account. Do not "fix" it by copying prod's key.
 
 Prod's running image digest, recorded whenever it changes:
 
-| Date       | Version  | Digest                                                                    | Soaked?                             |
-| ---------- | -------- | ------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-08-30 | v0.124.0 | `sha256:7e46b7342e81a129b72a97b99941fc6b0c60642b9de9d29cac4b12d5ffd9e5a4` | **yes**                             |
-| 2026-08-28 | v0.123.0 | `sha256:69c1a8ae8dbeb1bc00974c5811902cecc9fa9f45c0334dbc7b1b1b8ff4913831` | **yes**                             |
-| 2026-08-27 | v0.122.0 | `sha256:7112d0151d52f99f7cdbbecd5beaa6f52b5e2236e2b0909b7cfce9728cbfff21` | **yes**                             |
-| 2026-08-26 | v0.121.0 | `sha256:ca8956dbc1e402ca33810bbcfd0d1dbd1041e33f75a8ffd59b360872ee10621b` | **yes**                             |
-| 2026-08-26 | v0.120.0 | `sha256:68b56eaceb98f84bab7358d6f25543c347a69543147ed05129201f340d81ab48` | **yes**                             |
-| 2026-08-24 | v0.119.0 | `sha256:9a82b62c83be062b461ebe6091f73aad1d10c499876e54f2d3fe0d6e30361c05` | **yes**                             |
-| 2026-08-24 | v0.118.0 | `sha256:cea5b7143b46bd3283eef5ebec889dfc82bfeb27f289dbc692fe389630b919e2` | **yes**                             |
-| 2026-08-20 | v0.116.0 | `sha256:e424e3d347d0eede407214642ad5cfa2d14c6c28f280b8d6296f26934af7b24d` | **yes**                             |
-| 2026-08-20 | v0.115.0 | `sha256:e9427387e23f3db1e476022f2085e6c96540c914b2648f57e813990fc13d4753` | **yes**                             |
-| 2026-08-20 | v0.114.0 | `sha256:69100f0e9a1efa6a67a62c0f96d2e63261f779f4e96b8b7150c26d9fdb24b1ab` | **yes**                             |
-| 2026-08-19 | v0.113.0 | `sha256:651f366c6790fd90529a6814b392eb748fc996cf3f5b6d143a745c3ab5926443` | **yes**                             |
-| 2026-08-19 | v0.112.0 | `sha256:510bdb3f42b5e2383d962a161d2786d165fa46366fbc62ef23b8cf6afdd17fd2` | **yes**                             |
-| 2026-08-18 | v0.111.0 | `sha256:4395e18768e62671b3e9ffe9967ac3bd1ade0412ef17f954a7a37374a96ae3f8` | **yes**                             |
-| 2026-08-17 | v0.106.0 | `sha256:2ed296b142bb3e3fd73d057296f3f7b896c7ff168d992e5f270d940997f52032` | **yes**                             |
-| 2026-08-17 | v0.105.1 | `sha256:4f2abdc0124e139a776fe4710027fa1591763a6a6efa249b134bb1d4809661a2` | **yes**                             |
-| 2026-08-16 | v0.104.0 | `sha256:d7771b840f313a5ce0b2054983077712cf90ab6642cb85cf06c425082621cc6f` | **no** — see below                  |
+| Date       | Version  | Digest                                                                    | Soaked? |
+| ---------- | -------- | ------------------------------------------------------------------------- | ------- |
+| 2026-09-03 | v0.134.0 | `sha256:4d458a59140b667834c019bed40641b74bbefc059771c6e22ab817eebbe043ff` | **yes** |
+| 2026-09-02 | v0.133.0 | `sha256:139912f510ee4fb2775f5e134e827b006597baa795c9b230ca7e86964675e266` | **yes** |
+| 2026-08-30 | v0.124.0 | `sha256:7e46b7342e81a129b72a97b99941fc6b0c60642b9de9d29cac4b12d5ffd9e5a4` | **yes** |
+| 2026-08-28 | v0.123.0 | `sha256:69c1a8ae8dbeb1bc00974c5811902cecc9fa9f45c0334dbc7b1b1b8ff4913831` | **yes** |
+| 2026-08-27 | v0.122.0 | `sha256:7112d0151d52f99f7cdbbecd5beaa6f52b5e2236e2b0909b7cfce9728cbfff21` | **yes** |
+| 2026-08-26 | v0.121.0 | `sha256:ca8956dbc1e402ca33810bbcfd0d1dbd1041e33f75a8ffd59b360872ee10621b` | **yes** |
+| 2026-08-26 | v0.120.0 | `sha256:68b56eaceb98f84bab7358d6f25543c347a69543147ed05129201f340d81ab48` | **yes** |
+| 2026-08-24 | v0.119.0 | `sha256:9a82b62c83be062b461ebe6091f73aad1d10c499876e54f2d3fe0d6e30361c05` | **yes** |
+| 2026-08-24 | v0.118.0 | `sha256:cea5b7143b46bd3283eef5ebec889dfc82bfeb27f289dbc692fe389630b919e2` | **yes** |
+| 2026-08-20 | v0.116.0 | `sha256:e424e3d347d0eede407214642ad5cfa2d14c6c28f280b8d6296f26934af7b24d` | **yes** |
+| 2026-08-20 | v0.115.0 | `sha256:e9427387e23f3db1e476022f2085e6c96540c914b2648f57e813990fc13d4753` | **yes** |
+
+**The table skips v0.125.0 through v0.132.0**, and the gap is real rather than
+cosmetic: `promote.yml` emits a `record this in docs/ENVIRONMENTS.md` notice on
+every single run, and for eight consecutive releases nobody did. Those digests
+are recoverable from each Promote run's log (the notice reads
+`latest = <new> (was <old>)`) but they are not recorded here, so **a rollback
+that needs to go past v0.133.0 currently has no target in this file** and must
+be reconstructed from Actions history first.
+
+v0.133.0's digest above was recovered exactly that way, from v0.134.0's Promote
+run — which is the cheap moment to do it, because the notice names the
+outgoing digest as well as the incoming one.
+| 2026-08-20 | v0.114.0 | `sha256:69100f0e9a1efa6a67a62c0f96d2e63261f779f4e96b8b7150c26d9fdb24b1ab` | **yes** |
+| 2026-08-19 | v0.113.0 | `sha256:651f366c6790fd90529a6814b392eb748fc996cf3f5b6d143a745c3ab5926443` | **yes** |
+| 2026-08-19 | v0.112.0 | `sha256:510bdb3f42b5e2383d962a161d2786d165fa46366fbc62ef23b8cf6afdd17fd2` | **yes** |
+| 2026-08-18 | v0.111.0 | `sha256:4395e18768e62671b3e9ffe9967ac3bd1ade0412ef17f954a7a37374a96ae3f8` | **yes** |
+| 2026-08-17 | v0.106.0 | `sha256:2ed296b142bb3e3fd73d057296f3f7b896c7ff168d992e5f270d940997f52032` | **yes** |
+| 2026-08-17 | v0.105.1 | `sha256:4f2abdc0124e139a776fe4710027fa1591763a6a6efa249b134bb1d4809661a2` | **yes** |
+| 2026-08-16 | v0.104.0 | `sha256:d7771b840f313a5ce0b2054983077712cf90ab6642cb85cf06c425082621cc6f` | **no** — see below |
 | 2026-08-16 | v0.104.0 | `sha256:473fc46f763739d0c014a4eff869a0219c111de09c5ba4e240d49f5830c45413` | yes, but superseded within the hour |
-| 2026-08-14 | v0.103.0 | `sha256:8c0b451ad7f752ff72d304e2de394cedd9417dac13584d1aca970fa62c42fbb2` | pre-gate                            |
+| 2026-08-14 | v0.103.0 | `sha256:8c0b451ad7f752ff72d304e2de394cedd9417dac13584d1aca970fa62c42fbb2` | pre-gate |
 
 **Rolling back from v0.113.0 is unconstrained,** and so is the step below it.
 v0.113.0 lands on v0.112.0 (`510bdb3f`), and v0.112.0 lands on v0.111.0
