@@ -100,3 +100,23 @@ describe("DayLogCard", () => {
     expect(html).not.toMatch(/text-\[[\d.]+px\]/);
   });
 });
+
+describe("Today's log is one line, not three tiles", () => {
+  // The scores shipped as three bordered tiles with title-size numerals —
+  // the tallest block on Today for three small numbers. They are a summary
+  // of what the athlete typed, not a headline, so they read as one line.
+  it("states the scores inline, with no tile boxes or title-size numerals", () => {
+    const html = renderToString(<DayLogCard {...full} />);
+    expect(html).toContain("Energy");
+    expect(html).toContain("7");
+    expect(html).not.toContain("grid-cols-3");
+    expect(html).not.toContain("text-title");
+  });
+
+  // The parts the athlete actually wrote keep their own lines. Shrinking the
+  // numbers must not quietly drop the note or the debrief with them.
+  it("keeps the note and the debrief line on their own", () => {
+    const html = renderToString(<DayLogCard {...full} />);
+    expect(html).toContain("Endurance Spin — RPE 6 · felt normal");
+  });
+});
