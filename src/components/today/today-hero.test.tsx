@@ -94,66 +94,60 @@ describe("TodayHero", () => {
     expect(html).not.toMatch(/text-\[[\d.]+px\]/);
   });
 
-  // v0.100.1 REVERSED half of this, on owner feedback. The compact variant
-  // shipped as a bare numeral, which read as one stat among others rather
-  // than as the app's headline signal. The ring is back; the legend is still
-  // dropped, so the variant is still a demotion.
-  it("keeps the ring but drops the legend in the compact variant", () => {
-    const html = renderToString(<TodayHero {...base} variant="compact" />);
-    expect(html).toContain("78");
+  // THE CARD NO LONGER VARIES BY TIME OF DAY. It had a "compact" variant the
+  // evening and post-session states rendered instead — a half-size ring, no
+  // legend — so the app's headline signal shrank as the day went on. One
+  // card now, at every hour, in every state.
+  it("renders one size — there is no smaller variant to fall back to", () => {
+    const html = renderToString(<TodayHero {...base} />);
+    expect(html).toContain("w-[104px]");
+    expect(html).not.toContain("w-14");
+  });
+
+  it("keeps the legend at every hour, because there is only one rendering", () => {
+    const html = renderToString(<TodayHero {...base} />);
+    expect(html).toContain("Recovery");
+    expect(html).toContain("Sleep");
+  });
+
+  // Staleness is now a fact about the READING, not about the clock. The old
+  // marker fired at 18:00 on a reading taken that same morning, and never
+  // fired at 07:00 on a reading three weeks old.
+  it("says when a stale reading is from, and drops the advice clause", () => {
+    const html = renderToString(<TodayHero {...base} readingAge="Monday" />);
+    // React renders the date inside a <span>, so there is no hydration
+    // comment between "From " and the word — assert the real output.
+    expect(html).toContain("From ");
+    expect(html).toContain(">Monday</span>");
+    // The one-word verdict survives; the recommendation does not. "ready for
+    // intensity" is a claim about a body that was measured days ago.
     expect(html).toContain("Strong");
-    expect(html).toContain("<svg");
-    expect(html).toContain("ring-fill");
-    expect(html).not.toContain("Recovery<!-- --> <!-- -->82");
+    expect(html).not.toContain("ready for intensity");
   });
 
-  it("draws the compact ring smaller than the full one", () => {
-    // Not cosmetic: if the two rendered at the same size the variant would
-    // stop being a demotion, which is the whole reason it exists.
-    const compact = renderToString(<TodayHero {...base} variant="compact" />);
-    const full = renderToString(<TodayHero {...base} />);
-    expect(compact).toContain("w-14");
-    expect(compact).not.toContain("w-[104px]");
-    expect(full).toContain("w-[104px]");
+  it("keeps the ring, the why line and the legend on a stale reading", () => {
+    const html = renderToString(<TodayHero {...base} readingAge="Monday" />);
+    expect(html).toContain("78");
+    expect(html).toContain("w-[104px]");
+    expect(html).toContain("HRV 91 vs 97 baseline");
+    expect(html).toContain("Recovery");
   });
 
-  it("shows the compact ring as an empty track while calibrating", () => {
+  // The normal case, and the whole point: a reading from today renders the
+  // full verdict with nothing added, identically at 07:00 and at 21:00.
+  it("adds nothing when the reading is today's", () => {
+    const html = renderToString(<TodayHero {...base} readingAge={null} />);
+    expect(html).toContain("ready for intensity");
+    expect(html).not.toContain("From <span");
+  });
+
+  it("still shows an empty track while calibrating", () => {
     const html = renderToString(
-      <TodayHero
-        {...base}
-        readiness={null}
-        band="calibrating"
-        variant="compact"
-      />
+      <TodayHero {...base} readiness={null} band="calibrating" />
     );
     expect(html).toContain("<svg");
     expect(html).not.toContain("ring-fill");
     expect(html).toContain("—");
-  });
-
-  it("keeps the why line in the compact variant by default", () => {
-    const html = renderToString(<TodayHero {...base} variant="compact" />);
-    expect(html).toContain("HRV 91 vs 97 baseline");
-  });
-
-  it("labels the number as stale and drops the why line when asked", () => {
-    const html = renderToString(
-      <TodayHero
-        {...base}
-        variant="compact"
-        staleLabel="Readiness this morning"
-      />
-    );
-    expect(html).toContain("Readiness this morning");
-    expect(html).toContain("Strong");
-    expect(html).not.toContain("HRV 91");
-  });
-
-  it("ignores staleLabel in the full variant", () => {
-    const html = renderToString(
-      <TodayHero {...base} staleLabel="Readiness this morning" />
-    );
-    expect(html).not.toContain("Readiness this morning");
   });
 
   it("paints the band with token classes, not the dark-only BAND_COLOR map", () => {

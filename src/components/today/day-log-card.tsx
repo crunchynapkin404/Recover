@@ -37,22 +37,22 @@ export function DayLogCard({ scores, tags, notes, debriefLine }: DayLogProps) {
         Today&apos;s log
       </p>
 
+      {/* One line, not three tiles. These shipped as bordered boxes with
+          title-size numerals — the tallest block on Today, for three small
+          numbers the athlete typed themselves. They summarise the day; they
+          are not its headline, and the readiness ring above already is. */}
       {scores.length > 0 && (
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {scores.map((s) => (
-            <div
-              key={s.label}
-              className="rounded-xl border border-hairline bg-surface-overlay px-3 py-2.5 text-center"
-            >
-              <p className="font-numeric text-title font-bold leading-none text-ink-primary">
+        <p className="mt-1.5 text-caption text-ink-secondary">
+          {scores.map((s, i) => (
+            <span key={s.label}>
+              {i > 0 && " · "}
+              {s.label}{" "}
+              <span className="font-numeric font-bold text-ink-primary">
                 {s.value}
-              </p>
-              <p className="mt-1 text-label font-bold uppercase tracking-[0.14em] text-ink-muted">
-                {s.label}
-              </p>
-            </div>
+              </span>
+            </span>
           ))}
-        </div>
+        </p>
       )}
 
       {tags.length > 0 && (

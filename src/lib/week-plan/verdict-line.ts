@@ -48,9 +48,12 @@ import { WEEKDAY_NAMES, weekdayIndex } from "@/lib/weekdays";
  *   usually NOT today — that's the whole point of the day strip) IS today,
  *   AND the figure being quoted is itself today's. `readiness`/`band` are
  *   read off `readinessMetric` (page.tsx), which falls back up to 7 days
- *   looking for a non-null readiness — the same staleness gap
- *   today-hero.tsx's own `staleLabel` exists to cover, which Week's chip has
- *   no marker for. Off-today, or on a stale figure, the sentence describes
+ *   looking for a non-null readiness — the same staleness gap Today's hero
+ *   covers by NAMING the reading's date ("From Monday · Strong", see
+ *   today-hero.tsx's `readingAge`), which Week's chip has no marker for.
+ *   Today used to key that on time of day instead, which marked a fresh
+ *   reading stale at 18:00 and left a three-week-old one unmarked at 07:00;
+ *   the date is the fact, and the clock was only ever a proxy for it. Off-today, or on a stale figure, the sentence describes
  *   only the session — the same shape the calibrating case already used,
  *   extended to a second reason a claim isn't safe to make.
  * - TENSE IS DERIVED FROM THE DATE, NOT THE STATUS (I3 fix, final

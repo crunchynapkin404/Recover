@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.135.0 — 2026-09-03 — One readiness card, at every hour
+
+### What you will notice
+
+**The readiness card no longer shrinks as the day goes on.** It had three
+renderings — full in the morning, a half-size version after a session, another
+in the evening — so the app's headline signal got smaller the longer you were
+awake. There is one card now: same ring, same verdict, same why line, same
+legend, whatever the time.
+
+**A reading that isn't from today says so.** "From Monday · Strong" instead of
+"✓ Strong · ready for intensity", because a recommendation to train hard is a
+claim about a body measured days ago.
+
+**Today's log is one line.** Energy, soreness and stress were three bordered
+tiles with headline-size numerals — the tallest block on Today for three small
+numbers you typed yourself. Your note, tags and ride debrief are unchanged.
+
+### Under the hood
+
+**Staleness moved from the clock to the fact, and that fixes a real gap.** The
+old marker keyed on time of day: it fired at 18:00 on a reading taken that same
+morning, and never fired at 07:00 on a reading three weeks old. Today searches
+a **thirty-day** window for the first non-null readiness, so a month-old score
+could reach the card unmarked in every state. It is now marked wherever it
+appears, by the date the reading actually describes.
+
+**Migrations: none.**
+
 ## v0.134.0 — 2026-09-03 — Settings navigability, and the anchors nobody sets
 
 Counted in production on 2026-09-02: one user of three has a `body_prefs` row,
