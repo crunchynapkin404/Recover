@@ -43,6 +43,9 @@ import {
 } from "../src/lib/training-plan";
 import { getOpenWeekPlan } from "../src/lib/week-plan/service";
 import { workoutForDay } from "../src/lib/interval/for-day";
+import { canAddWorkout } from "../src/lib/week-plan/add-chosen";
+import { localYmd } from "../src/lib/charts";
+import { serializeDays } from "../src/lib/week-plan/serialize";
 
 const DAY_MS = 86_400_000;
 /** Far enough out that the plan is in base phase, where the week is ordinary. */
@@ -281,6 +284,31 @@ async function main() {
   // ordinary Train tab under a name promising a workout — which is the entire
   // failure this account was created to close. Fail here, where the message
   // can say why, rather than in a capture that can only say what it saw.
+  // Clear the LAST future day that holds a session, so the picker has
+  // somewhere to open. Deliberate, not incidental: the generator fills every
+  // day it can reach, and every day it leaves empty is one that has already
+  // passed — which canAddWorkout refuses. Taking the last day keeps the
+  // earlier ones intact for `train-workout`, which needs a day WITH a
+  // session on the very same account.
+  {
+    const w = await getOpenWeekPlan(userId);
+    const t = localYmd(new Date());
+    const victim = [...(w?.days ?? [])]
+      .reverse()
+      .find((d) => d.workouts.length > 0 && d.date > t);
+    if (w && victim) {
+      const days = w.days.map((d) =>
+        d.date === victim.date
+          ? { ...d, workouts: [], status: "rest" as const }
+          : d
+      );
+      await db
+        .update(schema.weekPlans)
+        .set({ days: serializeDays(days), updatedAt: new Date() })
+        .where(eq(schema.weekPlans.id, w.id));
+    }
+  }
+
   const week = await getOpenWeekPlan(userId);
   if (!week) {
     console.error("Plan confirmed, but there is no open week. Refusing.");
@@ -324,10 +352,32 @@ async function main() {
     process.exit(1);
   }
 
+  // Self-check, third of the same shape: the library picker only exists on a
+  // day the engine left EMPTY and that canAddWorkout still admits. An empty
+  // day in the PAST is refused, so "5 days a week" is not on its own enough —
+  // openEmptyDayPicker would walk every day and refuse, and the release would
+  // die in the Soak rather than filing a wrong picture. Better to say why here.
+  const todayYmd = localYmd(new Date());
+  const pickable = week.days.filter(
+    (d) => d.workouts.length === 0 && canAddWorkout(d, todayYmd).ok
+  );
+  if (pickable.length === 0) {
+    console.error(
+      "Plan confirmed, but no day in the open week is both empty and still " +
+        "addable, so train-pick-workout would have nothing to photograph. " +
+        `The week is: ${week.days
+          .map((d) => `${d.date}:${d.workouts.length}`)
+          .join(" ")}. Either daysPerWeek fills every day, or every empty ` +
+        "day has already passed."
+    );
+    process.exit(1);
+  }
+
   console.log(
     `Cycling owner ${email} seeded; race ${raceDate}; ` +
       `${hits} of ${answered.length} sessions have a structured workout; ` +
-      `${withResult} past races carry a result.`
+      `${withResult} past races carry a result; ` +
+      `${pickable.length} day(s) can take a picked workout.`
   );
 }
 

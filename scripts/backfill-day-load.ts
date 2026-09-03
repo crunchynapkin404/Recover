@@ -41,10 +41,7 @@ import { canonicalSport, sportMatches } from "../src/lib/canonical-sport";
 import { bookDayLoad } from "../src/lib/week-plan/actuals";
 import type { DaySlot } from "../src/lib/week-plan/types";
 // Relative, not "@/" — tsx run standalone does not resolve the path alias.
-import {
-  normalizeDays,
-  serializeDays,
-} from "../src/lib/week-plan/serialize";
+import { normalizeDays, serializeDays } from "../src/lib/week-plan/serialize";
 
 interface Change {
   weekStart: string;

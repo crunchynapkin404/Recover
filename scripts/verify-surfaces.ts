@@ -279,6 +279,11 @@ const SURFACES: Record<string, string> = {
   // (its own job, its own Postgres — see surfaces.yml), driven onto a day that
   // has a session. See openPlannedDay.
   "train-workout": "/train",
+  // The library picker, opened on a day the engine left EMPTY. Cycling-only
+  // for the same reason train-workout is — the library is cycling, and the
+  // demo owner's plan is a marathon — and driven, because the sheet only
+  // exists on a day that has nothing on it. See openEmptyDayPicker.
+  "train-pick-workout": "/train",
   "train-history": "/train?tab=history",
   // `train-season` is GONE, not renamed. v0.123.0 retired the Season tab
   // (zero actions on a screen that did not scroll), and `/train?tab=season`
@@ -868,6 +873,49 @@ function firstRunGuard(
 }
 
 /**
+ * `train-pick-workout` — the library picker, on a day the engine left empty.
+ *
+ * The mirror of openPlannedDay: that one looks for a day WITH a session, this
+ * one for a day without. Walks the week strip's own links rather than
+ * computing a date, because which days are empty is the seed's business.
+ *
+ * REFUSES rather than falling back, for the reason this file's header gives
+ * and v0.126.0 learned the hard way: a capture filed under a name it does not
+ * show is worse than no capture. A day with no "Add a ride" link is a day the
+ * picker is not reachable from, and no day having one is a finding — either
+ * the seed left no empty day, or the affordance stopped rendering.
+ */
+async function openEmptyDayPicker(page: Page): Promise<void> {
+  const links = page.locator("a[data-date]");
+  const dates: string[] = [];
+  for (let i = 0; i < (await links.count()); i++) {
+    const d = await links.nth(i).getAttribute("data-date");
+    if (d) dates.push(d);
+  }
+  if (dates.length === 0) {
+    throw new Error(
+      "train-pick-workout: the week strip rendered no a[data-date] links, so " +
+        "there is no day to open. Refusing to capture the default Train tab " +
+        "under a second name."
+    );
+  }
+
+  for (const date of dates) {
+    await page.goto(`${BASE_URL}/train?day=${date}&sheet=pick-workout`, {
+      waitUntil: "networkidle",
+    });
+    if ((await page.locator("[data-workout-picker]").count()) > 0) return;
+  }
+
+  throw new Error(
+    `train-pick-workout: none of ${dates.length} days produced a ` +
+      "[data-workout-picker] block. Either the seed left no empty, eligible " +
+      "day in the open week, or canAddWorkout stopped admitting one. Both " +
+      "are findings. Refusing to capture."
+  );
+}
+
+/**
  * `train-workout` — the open day driven onto a day that HAS a session.
  *
  * Walks the week strip's own `a[data-date]` links rather than computing a
@@ -933,6 +981,7 @@ const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
     "?sheet=availability"
   ),
   "train-workout": openPlannedDay,
+  "train-pick-workout": openEmptyDayPicker,
   "coach-history": waitForHistoryPanel,
   "coach-history-active": waitForActiveThreadRow,
 };

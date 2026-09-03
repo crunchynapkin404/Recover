@@ -105,7 +105,10 @@ export function WorkoutPicker({
   );
 
   return (
-    <div className="flex flex-col gap-3">
+    // The capture hook. scripts/verify-surfaces.ts refuses to file
+    // `train-pick-workout` without it rather than photographing the
+    // ordinary Train tab under a second name.
+    <div data-workout-picker className="flex flex-col gap-3">
       {warning && (
         <p
           className="rounded-md border border-ink-race/40 bg-ink-race/10 px-3 py-2 text-caption text-ink-race"
