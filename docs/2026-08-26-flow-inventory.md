@@ -927,11 +927,41 @@ repeat that mistake, this section isolates the slice's own effect with a
 controlled same-session A/B, the same technique the body-flip and slice-3
 sections above used: `src/app/train/page.tsx` and
 `src/components/train/fuelling-card.tsx` were temporarily restored to their
-state at `0b78153f` (the commit immediately before this slice touched either
-file — confirmed via `git diff --stat 0b78153f HEAD -- <both paths>`, and
-that no other commit between `0b78153f` and this slice's start touches
-either), rebuilt, measured, then restored to `HEAD` and rebuilt again — same
-dev DB, same day, minutes apart, nothing else different.
+state at `0b78153f`, the commit immediately before this slice started
+(`98137dd8`, the plan doc, is its parent).
+
+**The control is scoped to two files, and the slice touched four.**
+`git diff --stat 0b78153f 94a10322` (94a10322 is this slice's tip before
+Task 6) shows the full set: `src/app/train/page.tsx`,
+`src/components/train/fuelling-card.tsx` — both reverted for the control —
+plus two production files that were **not** reverted:
+`src/lib/fuelling/summary.ts` (new) and `src/lib/log-href.ts` (`"fuelling"`
+added to the `TRAIN_SHEETS` tuple). Naming and ruling out those two, rather
+than only checking the two files actually swapped, is the honest version of
+this claim — a check scoped to the reverted files can only ever confirm
+itself. Both are inert for the specific routes measured, for two different,
+independently-verified reasons:
+
+- **`src/lib/fuelling/summary.ts`** exports `fuellingSummary`, and
+  `grep -rn "fuellingSummary" src/` outside test files shows exactly one
+  importer: `fuelling-card.tsx`. The control build ran the **old**
+  `fuelling-card.tsx` (from `0b78153f`), which does not import it — so the
+  new file is never loaded, let alone executed, in the control build. Not a
+  behavioural difference; a file the control's import graph never reaches.
+- **`src/lib/log-href.ts`**'s `TRAIN_SHEETS` gained one member, `"fuelling"`.
+  Its only functional consumer, in both the old page.tsx and current
+  HEAD's, is `TRAIN_SHEETS.find((s) => s === sp.sheet)` (`sheet-host.tsx`
+  also names `TRAIN_SHEETS` but only in a comment, and is not rendered on
+  `/train`). Neither URL this section measures — `/train` and
+  `/train?day=2026-08-30` — carries a `?sheet=` param, so `sp.sheet` is
+  `undefined` on both, and `.find` over a tuple of strings never matches
+  `undefined`. Whether or not `"fuelling"` is a member of the array, the
+  `.find` returns the same `undefined` either way. The extra member cannot
+  change a result neither reading ever asks it to compute.
+
+Both reverted files, both rebuilt, measured, then restored to `HEAD` and
+rebuilt again — same dev DB, same day, minutes apart, nothing else
+different.
 
 ### Capture and axe (Task 6)
 
