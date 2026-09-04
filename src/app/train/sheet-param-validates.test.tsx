@@ -2,7 +2,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { renderToReadableStream } from "react-dom/server";
 import { mondayOf, addDaysYmd } from "@/lib/week-plan/service";
-import { TRAIN_SHEETS } from "@/lib/log-href";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { withPurpose } from "@/lib/training-plan";
 import { blockPlacement } from "@/lib/week-plan/placement";
@@ -399,15 +398,14 @@ describe.skipIf(!hasDb)(
       expect((matches ?? []).length).toBeGreaterThan(0);
     });
 
-    it("accepts the fuelling sheet", () => {
-      expect(TRAIN_SHEETS).toContain("fuelling");
-    });
-
-    it("still rejects a sheet nobody defined", () => {
-      expect((TRAIN_SHEETS as readonly string[]).includes("not-a-sheet")).toBe(
-        false
-      );
-    });
+    // Two tests here once asserted `TRAIN_SHEETS` contains "fuelling" and
+    // does not contain "not-a-sheet" — the CONSTANT, not the validator, and
+    // both facts are already proved at render level in this same file: the
+    // "renders no dialog for a sheet name outside TRAIN_SHEETS" test above
+    // covers rejection, and "TrainPage: the fuelling sheet" below covers
+    // acceptance with the guidance actually in the dialog. Deleted rather
+    // than hoisted out of `describe.skipIf` — hoisting would only run two
+    // tautologies in more places.
   }
 );
 
@@ -1246,6 +1244,8 @@ describe.skipIf(!hasDb)(
 // DaySlot-literal shape fuelling-open-day.test.tsx already builds one with.
 const FUELLING_USER = "test-train-sheet-moves-fuelling";
 const FUELLING_DAY = addDaysYmd(WEEK_START, 2);
+/** The week's Sunday: seeded empty, and never before today. */
+const FUELLING_SUNDAY = addDaysYmd(WEEK_START, 6);
 
 async function seedWeekWithSession(userId: string): Promise<void> {
   const { db, schema } = await import("@/lib/db");
@@ -1317,5 +1317,34 @@ describe.skipIf(!hasDb)("TrainPage: the fuelling sheet", () => {
     expect(html).toContain('role="dialog"');
     expect(html).toContain('aria-label="Session fuelling"');
     expect(html).toContain("Before:");
+  });
+
+  // I1, final whole-branch review. The sheet used to be gated on
+  // `openDaySlot`, which the plan's own Self-Review described as refusing a
+  // session-less day. It refused nothing — `openDayFrom` always resolves to
+  // a date IN the week, so `openDaySlot` is always found — and a rest day
+  // got a scrim, a focus trap and a body-scroll lock over a panel holding
+  // its own title and nothing else. FUELLING_SUNDAY is the last day of the
+  // seeded week: empty, and never in the past whatever weekday the suite
+  // runs on, so `canAddWorkout` admits it and the fix link is offered.
+  it("refuses in the missing_input vocabulary on a day with no session", async () => {
+    const html = await renderTrainWeekWithSheet(
+      FUELLING_USER,
+      "fuelling",
+      undefined,
+      FUELLING_SUNDAY
+    );
+    // Still a real destination, not a silently-dead URL.
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain('aria-label="Session fuelling"');
+    // `unavailableMessage` renders `missing_input` as "Needs <needs>".
+    expect(html).toContain("Needs a session on this day");
+    // And the remedy, pointing at the picker for THIS day.
+    expect(html).toContain("Add a ride");
+    expect(html).toContain("sheet=pick-workout");
+    // The half that makes it a refusal rather than a second empty sheet:
+    // no guidance is claimed for a session that does not exist.
+    expect(html).not.toContain("Before:");
+    expect(html).not.toContain("During:");
   });
 });

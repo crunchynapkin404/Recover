@@ -1132,21 +1132,64 @@ async function WeekTab({
       </WeekSheet>
     ) : null;
 
-  // Session fuelling for the open day. Gated on `openDaySlot` as well as
-  // `sheetParam`: with no open day there is no session to fuel, and an empty
-  // sheet reachable only by typing the URL is the state `whyWeekSheet`'s own
-  // comment above refuses for the same reason.
+  // Session fuelling for the open day.
+  //
+  // I1, final whole-branch review: this gate was `sheetParam === "fuelling"
+  // && openDate && openDaySlot`, described in its own comment as refusing a
+  // day with no session to fuel. It refused nothing. `openDate` is always a
+  // member of `week.days` when a week exists (`openDayFrom` resolves an
+  // absent or out-of-week `?day=` to a date IN the week), so `openDaySlot`
+  // is always found and the whole condition collapsed to "an open week
+  // exists". A rest day therefore got the full modal apparatus — scrim,
+  // focus trap, body-scroll lock — over a panel saying "Session fuelling"
+  // and nothing else, because `FuellingDetail` returns null on an empty
+  // `workouts`. The focus trap's zero-focusables branch preventDefaults Tab
+  // and the Close control sits outside the panel, so Escape was a keyboard
+  // user's only way out.
+  //
+  // The sheet stays reachable and becomes honest instead of being gated
+  // away: `?sheet=fuelling` is a URL an athlete can hold — a bookmark, a
+  // shared link, a link that was right until a replan emptied the day — and
+  // a destination that silently does nothing teaches less than one that
+  // says what is missing. The spec's Risks section asks for exactly this,
+  // in the `missing_input`/`fix` vocabulary the first-run branch above and
+  // the race-pacing line below already speak.
+  //
+  // The `fix` is `pick-workout` because that is the actual remedy: what the
+  // day needs is a session. It is offered only when `canAddWorkout` agrees
+  // — the same predicate that decides whether WeekDayList renders "Add a
+  // ride" on this day — so the link can never point at a picker that would
+  // refuse to open. On a settled or past day the state renders with no fix,
+  // which `Unavailable` handles.
+  const fuellingFix =
+    openDaySlot && canAddWorkout(openDaySlot, todayYmd).ok
+      ? {
+          label: "Add a ride",
+          href: resolvedHref({ sheet: "pick-workout", day: openDate }),
+        }
+      : undefined;
   const fuellingSheet =
-    sheetParam === "fuelling" && openDate && openDaySlot ? (
+    sheetParam === "fuelling" && openDaySlot ? (
       <WeekSheet
         title="Session fuelling"
         closeHref={resolvedHref({ sheet: "" })}
       >
-        <FuellingDetail
-          date={openDate}
-          workouts={openDaySlot.workouts}
-          bodyMassKg={bodyMassKg}
-        />
+        {openDaySlot.workouts.length > 0 ? (
+          <FuellingDetail
+            workouts={openDaySlot.workouts}
+            bodyMassKg={bodyMassKg}
+          />
+        ) : (
+          <Unavailable
+            full
+            state={{
+              kind: "missing_input",
+              needs:
+                "a session on this day before it can tell you how to fuel it",
+              fix: fuellingFix,
+            }}
+          />
+        )}
       </WeekSheet>
     ) : null;
 
@@ -1651,7 +1694,6 @@ async function WeekTab({
               handles an empty `workouts` array, not a missing day slot). */}
             {openDaySlot && (
               <FuellingLine
-                date={openDate}
                 workouts={openDaySlot.workouts}
                 bodyMassKg={bodyMassKg}
                 href={resolvedHref({ sheet: "fuelling" })}
