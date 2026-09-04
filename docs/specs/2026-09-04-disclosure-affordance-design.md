@@ -89,13 +89,39 @@ week" would be a summary linking to something that does not explain it.
 
 ### 3. Slices, each measured
 
-1. **`DisclosureLink` + `RaceChip` collapses.** The component, the two
-   `why-week` anchors, and the race chip reduced to one line. Measure.
-2. **The totals line.** Build the struck deliverable, with its `ⓘ`. Every
-   input already exists on the page (`plannedMins(week.days)`, `offeredMins`,
-   the session count off `week.days`). Measure.
-3. **The fuelling sheet + `FuellingCard` collapse.** One new `TRAIN_SHEETS`
-   entry, the card reduced to a line in the open day. Measure.
+**REORDERED 2026-09-04, before any code was written**, because reading
+`train/page.tsx` contradicted the ordering this spec first proposed. The
+original slice 1 was "`DisclosureLink` + `RaceChip` collapses". But
+`page.tsx:1635` records that `WeekRationale`, `EventReadiness`, the adjustments
+list and the race-pacing prose ALL moved into the `why-week` sheet in v0.123.0,
+replaced on the page by a "Why this week" `SummaryRow` — and `RaceChip` is
+already a single-line link. So the content that `ⓘ` was to disclose is already
+behind a link, and the `ⓘ` would add a SECOND control aimed at the same sheet.
+
+Its remaining value is **attachment** — explanation beside the thing it
+explains, this spec's own rule 2 — and not compression. Ordered first, it would
+have faced a measurement gate it was structurally certain to fail: near-zero
+screens saved against +1 control. That is how a strand acquires a slice that
+"measures worse" and gets waved through on momentum.
+
+1. **The fuelling sheet, the component, and `FuellingCard` collapsed.**
+   `FuellingCard` is a 99-line `<section className="glass mb-5 … p-4">` sitting
+   open on the page — the actual screen bulk, and the only one of the three
+   needing content that does not exist. `DisclosureLink` is built here because
+   this is the first real consumer. Measure.
+2. **The totals line.** Build the struck deliverable, with its `ⓘ`. Every input
+   already exists on the page (`plannedMins(week.days)`, `offeredMins`, the
+   session count off `week.days`). Measure.
+3. **The `RaceChip` `ⓘ` — optional, and judged on attachment, not screens.**
+   If slices 1–2 land and the control count has room, it applies rule 2 to the
+   race. If the count is strained, this is the slice to drop, and dropping it
+   deliberately is a legitimate outcome recorded here in advance rather than
+   discovered later.
+   It carries one real defect regardless: `RaceChip`'s `href` is
+   `/train?tab=week`, so on the Train page it links to the page the athlete is
+   already on. The component is shared with Today, where that destination is
+   correct — so the fix is a conditional href, not a deletion, and it is worth
+   doing even if this slice is dropped.
 
 ## Measurement, and a commitment about it
 
