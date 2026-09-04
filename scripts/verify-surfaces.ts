@@ -345,6 +345,11 @@ const SURFACES: Record<string, string> = {
   // database's own `availability_defaults` rows are LEGACY (`start: null`),
   // which the timeline declines to place, so they do not stand in for it.
   "train-availability": "/train?sheet=availability",
+  // `?sheet=fuelling` shares a pathname with `/train`, so assertOnSurface —
+  // which compares pathname only — would pass over the ordinary Train tab
+  // under this name. sheetOpenGuard is what makes the surface mean anything;
+  // train-availability carries the identical note for the identical reason.
+  "train-fuelling": "/train?sheet=fuelling",
   // Coach is a multi-state surface behind one URL, and `/coach` alone renders
   // `messages.length === 0` — the empty state. Until slice 4, every message
   // bubble, the timestamp, ArtifactCard, the typing indicator and the error
@@ -1051,6 +1056,7 @@ const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
     "train-availability",
     "?sheet=availability"
   ),
+  "train-fuelling": sheetOpenGuard("train-fuelling", "?sheet=fuelling"),
   "train-workout": openPlannedDay,
   "train-pick-workout": openEmptyDayPicker,
   "coach-history": waitForHistoryPanel,
