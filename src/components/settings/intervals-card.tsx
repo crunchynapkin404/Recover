@@ -90,9 +90,9 @@ export function IntervalsCard({ connection }: Props) {
         {!connection && (
           <form action={connectAction} className="grid gap-3">
             <div className="grid gap-2">
-              <Label htmlFor="apiKey">API key</Label>
+              <Label htmlFor="intervals-api-key">API key</Label>
               <Input
-                id="apiKey"
+                id="intervals-api-key"
                 name="apiKey"
                 type="password"
                 placeholder="e.g. 1a2b3c4d5e6f…"

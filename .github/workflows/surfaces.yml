@@ -2,7 +2,9 @@ name: Surfaces
 
 # Playwright surface capture + the axe ratchet.
 #
-# THREE CAPTURE JOBS, DELIBERATELY.
+# FOUR CAPTURE JOBS, DELIBERATELY. (This header said THREE until 2026-09-04,
+# and had said it since `capture-cycling` was added in #220 — the count went
+# stale in the same commit that made it wrong.)
 #
 # `capture` vs `capture-preview-states`: previewStateFrom
 # (src/lib/today/state.ts) returns null when NODE_ENV === "production", so a
@@ -27,6 +29,22 @@ name: Surfaces
 # use a second identity would mean restructuring that shared harness. A
 # third job, against its own throwaway Postgres, needs no such change and
 # cannot collide with the other two by construction.
+#
+# That job now carries a fifth surface that is NOT a first-run state.
+# `settings-disconnected` is the ordinary Settings page on an account that has
+# connected nothing — the state in which every connector card shows a Connect
+# control and the mechanism sentence v0.124.0 added, and which no capture had
+# ever reached, because every other fixture connects all six deliberately. It
+# needs half of what the first-run surfaces need (no connections; it does not
+# care about wellness), so it rides on the account that already guarantees it
+# rather than earning a fifth job. Hence DATALESS_SURFACES rather than
+# FIRST_RUN_SURFACES: the list is named for the fixture now, not the branch.
+#
+# `capture-cycling` is the fourth, and the narrowest: the structured-workout
+# block, the library picker and the Races sheet all need a CYCLING plan and a
+# race that has actually been raced, and every other seeded plan is a marathon
+# because the race decides the plan's sport. Its own job, its own owner, its
+# own Postgres — the pattern the third job established.
 #
 # Do not merge any of these jobs back together.
 #
@@ -65,7 +83,13 @@ env:
   OWNER_EMAIL: dev@recover.local
   OWNER_PASSWORD: surfaces-ci-owner-password
   PREVIEW_SURFACES: today,today-post-session,today-evening
-  FIRST_RUN_SURFACES: first-run-today,first-run-train,first-run-body,first-run-coach
+  # The dataless owner's surfaces — the four first-run branches, plus
+  # `settings-disconnected`, which is not a first-run state at all. What binds
+  # them is the ACCOUNT, not the branch: first-run needs no wellness and no
+  # connections ever, and the settings surface needs the second half of that.
+  # One owner satisfies both, so they share a job and this list is named for
+  # the fixture rather than for the four surfaces that came first.
+  DATALESS_SURFACES: first-run-today,first-run-train,first-run-body,first-run-coach,settings-disconnected
   # The structured-workout block answers CYCLING days only, and every other
   # seeded plan is a marathon — the race decides the plan's sport. v0.126.0
   # shipped it with 100 PNGs and `0 confirmed` axe violations, not one of
@@ -184,7 +208,7 @@ jobs:
         # dependency — which is what happened on run 32368432220, where both
         # captures completed cleanly and were failed by a zero threshold the
         # ratchet exists to replace. Hard failures still fail this step.
-        run: npx tsx scripts/verify-surfaces.ts capture-main --except="$PREVIEW_SURFACES,$FIRST_RUN_SURFACES,$CYCLING_SURFACES" --no-axe-gate
+        run: npx tsx scripts/verify-surfaces.ts capture-main --except="$PREVIEW_SURFACES,$DATALESS_SURFACES,$CYCLING_SURFACES" --no-axe-gate
 
       - name: Show the server log if the capture failed
         if: failure()
@@ -333,6 +357,21 @@ jobs:
       # second sign-in inside `capture`.
       OWNER_EMAIL: fresh-owner@recover.local
       OWNER_PASSWORD: surfaces-ci-fresh-owner-password
+      # Dummy, and sound because nothing here follows a redirect. Settings
+      # reads these through `!!process.env.STRAVA_CLIENT_ID` and
+      # whoopConfigured()/withingsConfigured() — presence checks, all three —
+      # and ConnectorCard gates its mechanism sentence on `configured && not
+      # connected`. Without them the three redirect cards render a
+      # "Set X_CLIENT_ID" badge and `settings-disconnected` photographs a
+      # MISCONFIGURED instance rather than a connectable one; its guard counts
+      # the sentences and refuses at 2 rather than letting that pass. The
+      # OAuth flow is never exercised by a capture, so a fake id is the whole
+      # requirement — same reasoning as this file's other dummy secrets.
+      STRAVA_CLIENT_ID: surfaces-ci-strava-client-id
+      WHOOP_CLIENT_ID: surfaces-ci-whoop-client-id
+      WHOOP_CLIENT_SECRET: surfaces-ci-whoop-client-secret
+      WITHINGS_CLIENT_ID: surfaces-ci-withings-client-id
+      WITHINGS_CLIENT_SECRET: surfaces-ci-withings-client-secret
     services:
       postgres:
         image: postgres:16-alpine
@@ -406,7 +445,7 @@ jobs:
 
       - name: Capture the first-run states
         # See the note on the production capture above.
-        run: npx tsx scripts/verify-surfaces.ts capture-first-run --only="$FIRST_RUN_SURFACES" --no-axe-gate
+        run: npx tsx scripts/verify-surfaces.ts capture-first-run --only="$DATALESS_SURFACES" --no-axe-gate
 
       - name: Show the server log if the capture failed
         if: failure()

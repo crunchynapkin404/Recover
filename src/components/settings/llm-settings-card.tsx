@@ -140,8 +140,25 @@ export function LlmSettingsCard({ settings }: Props) {
             </select>
           </div>
 
+          {/*
+           * `id` is not `name`. This card and intervals-card.tsx both post a
+           * field called apiKey, and both used to carry id="apiKey" as well —
+           * on one page, so whenever intervals.icu was DISCONNECTED the
+           * document held two. htmlFor resolves to the first in document
+           * order, and IntervalsCard renders under Integrations while this
+           * renders under AI & Coach, so this label pointed at the
+           * intervals.icu input: clicking it focused a field in another
+           * section, and left this input with no name from its label.
+           *
+           * Never photographed, because every capture fixture had
+           * intervals.icu connected and so rendered only one of the two.
+           * Found by settings-disconnected on its first run (2026-09-04), as
+           * axe duplicate-id-aria — in the INCOMPLETE bucket, which never
+           * gates, so llm-settings-card.dup-id.test.tsx is the actual guard.
+           * The ids are scoped; the names the server actions read are not.
+           */}
           <div className="grid gap-2">
-            <Label htmlFor="apiKey">
+            <Label htmlFor="llm-api-key">
               API Key{" "}
               {providerType === "openai_compatible" && (
                 <span className="text-muted-foreground text-label">
@@ -150,7 +167,7 @@ export function LlmSettingsCard({ settings }: Props) {
               )}
             </Label>
             <Input
-              id="apiKey"
+              id="llm-api-key"
               name="apiKey"
               type="password"
               placeholder={

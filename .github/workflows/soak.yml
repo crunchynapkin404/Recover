@@ -29,7 +29,7 @@ permissions:
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/recover
   PREVIEW_SURFACES: today,today-post-session,today-evening
-  # The four first-run surfaces are deliberately NOT captured here either,
+  # The dataless owner's surfaces are deliberately NOT captured here either,
   # for the same shape of reason as PREVIEW_SURFACES above. This soak seeds a
   # demo owner WITH data (Boxes 3-5), so a dataless account cannot exist in
   # this database by construction. Their guard then does exactly what it is
@@ -37,10 +37,17 @@ env:
   # promises the first-run state — and Box 8 fails. That is the guard working,
   # not a defect to route around, so the honest fix is to say here that this
   # soak cannot photograph them. surfaces.yml's dedicated capture-first-run
-  # job covers all four against the same commit this candidate was cut from.
+  # job covers them against the same commit this candidate was cut from.
   # Found by v0.120.0-rc.1's soak, which is the first release after the
   # surfaces were added.
-  FIRST_RUN_SURFACES: first-run-today,first-run-train,first-run-body,first-run-coach
+  #
+  # `settings-disconnected` is the fifth member and the reason this list is no
+  # longer named for the first-run branch: it is an ordinary Settings page, not
+  # a first-run state, and what it needs from the account is narrower — no
+  # CONNECTIONS. This soak's demo owner has all six connected, so the guard
+  # would count 0 mechanism notes and refuse. Same requirement, same job, so it
+  # travels with them rather than earning a sixth env var.
+  DATALESS_SURFACES: first-run-today,first-run-train,first-run-body,first-run-coach,settings-disconnected
   # And `train-workout` is excluded for the third variant of the same reason.
   # It needs a CYCLING plan — the race decides the plan's sport, and this soak
   # seeds the demo marathon runner, so the surface refuses rather than
@@ -161,7 +168,7 @@ jobs:
           set -a; . ./.env.rc; set +a
           SCREENSHOT_BASE_URL=http://localhost:3100 \
           OWNER_EMAIL="$OWNER_EMAIL" OWNER_PASSWORD="$OWNER_PASSWORD" \
-            npx tsx scripts/verify-surfaces.ts soak --except="$PREVIEW_SURFACES,$FIRST_RUN_SURFACES,$CYCLING_SURFACES"
+            npx tsx scripts/verify-surfaces.ts soak --except="$PREVIEW_SURFACES,$DATALESS_SURFACES,$CYCLING_SURFACES"
 
       # The artifact name carries the candidate. promote.yml asserts this exact
       # name, which is what binds a reviewed capture to the digest it describes

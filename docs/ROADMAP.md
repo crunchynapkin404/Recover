@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v0.136.0**. History through v0.119 is preserved in
+Current release: **v0.137.0**. History through v0.119 is preserved in
 [`docs/archive/ROADMAP-through-v0.119.md`](archive/ROADMAP-through-v0.119.md) —
 Phases 1–4, all complete. It is a record, not a plan.
 
@@ -175,6 +175,23 @@ named defect, not an aspiration:
       earliest date, so seeding a refusal race alongside the existing
       confirmed one hijacks the race card on every `train*` surface. It needs
       a second seeded athlete or a tie-break, and deserves its own scoping.
+      **Scoped 2026-09-04, and DECLINED — closed, not open.** A second seeded
+      athlete means a fifth capture job: `verify-surfaces.ts` signs in once
+      per process and hands that one storageState to every surface it
+      captures, so a second identity cannot ride inside an existing job (the
+      reasoning is in surfaces.yml's header, where it was written for the
+      first-run owner). A job is a production build against its own Postgres,
+      on every pull request, permanently. Against that cost: both refusals
+      have been read in place, and `races` in production has never held a
+      triathlon or a multi-day event — not once, in the same count that
+      parked Phase 7. Manufacturing a fixture for a state nobody has, to close
+      a line rather than to answer a question, is the substitution this file
+      has recorded three times, pointed at a screenshot instead of a metric.
+      What is declined is the PHOTOGRAPH, not the coverage: `pacing.test.ts`
+      refuses Triathlon naming the bike-to-run coupling (:148) and refuses a
+      multi-day event naming its reason (:168), and both assert the message
+      rather than merely the refusal. Reversible, and cheap to reverse — if a
+      triathlete ever uses this instance, the fixture is the easy part.
 
 ## Phase 6 — Experience
 
@@ -540,9 +557,20 @@ already calls a successful pass.
       quiet answer: a finished race is now findable. Whether it should instead
       MEET the athlete — a post-race state on Today — is still open, and is a
       larger slice than this one was.
-      **No capture photographs the new line yet.** The Soak's owner has no
-      linked race result and the four refusals are the interesting states; the
-      spec budgets for a seeded one and v0.130.0 did not spend it.
+      **The capture gap this line used to record is closed**, and the line
+      itself was wrong from 2026-09-02 to 2026-09-04. #241 spent the budget:
+      `train-races` joined `$CYCLING_SURFACES`, and `seed-cycling-owner.ts`
+      now seeds three past races carrying three DIFFERENT states — an
+      available comparison, the Strava-firewall refusal, and a distance
+      mismatch — refusing to finish if fewer than three carry a result. Three
+      of the four refusals, not four: the sheet shows the three most recent
+      raced events, and widening a product bound to suit a fixture is the
+      guard driving the coaching. The Soak still cannot photograph it, which
+      is why `train-races` sits on that workflow's `--except` list — its demo
+      owner has no race result — but surfaces.yml's capture-cycling job does,
+      against the exact commit an RC is cut from. Five releases passed with
+      this bullet claiming otherwise, which is the same shape of drift as the
+      "still 7.8 screens" line v0.134.0 had to correct.
 
 **The discipline that makes this honest:** calibration may only raise a
 confidence label when the evidence genuinely supports the raise. A
@@ -563,13 +591,30 @@ Named so they are not rediscovered; unscheduled so they are not promises.
 - **On-ramps for the three dormant-but-kept features** — Deep Biology,
   outbound webhooks, coach long-term memory.
 - **Fitbit / Google Health direct, and Cycle-Aware.**
-- **No capture photographs a disconnected connector.** Found while shipping
-  v0.122.0's mechanism note: every capture fixture — the development
-  database, the soak stack's seed — has all six connectors connected, so
-  `settings-expanded` and `settings-connect-errors` returned a clean
-  `0 confirmed` over markup the release had just changed and never
-  photographed. The dataless-owner job is the obvious home for a settings
-  surface, since that account has no connections by construction, but it
-  moves the axe ratchet and so is a scoped piece rather than a line. Same
-  shape as the collapsed-section gap `section-order.test.ts` guards: a
-  capture that passes over a state nobody has is not evidence.
+- ~~**No capture photographs a disconnected connector.**~~ **Closed
+  2026-09-04.** Found while shipping v0.122.0's mechanism note: every capture
+  fixture — the development database, the soak stack's seed — had all six
+  connectors connected, so `settings-expanded` and `settings-connect-errors`
+  returned a clean `0 confirmed` over markup the release had just changed and
+  never photographed. The dataless-owner job was indeed the home: that
+  account has no connections by construction, so `settings-disconnected`
+  rides on it rather than earning a fifth job, and the env var it selects
+  from is now `DATALESS_SURFACES` — named for the fixture, since a settings
+  page is not a first-run state.
+  **It moved no ratchet.** The worry was that unaudited markup would push
+  `confirmedNodes` above the committed 0; measured, it is 0 in all four
+  theme/viewport combinations, and the surface is added at the ceiling rather
+  than raising it.
+  **It found a real defect on its first run**, which is the argument for the
+  whole class of fixture. `intervals-card.tsx` and `llm-settings-card.tsx`
+  both post a field named `apiKey` and both carried `id="apiKey"` — a
+  collision only while intervals.icu is DISCONNECTED, since the first card
+  renders its connect form in no other state. `htmlFor` resolves to the first
+  match in document order, so the AI & Coach card's "API Key" label pointed
+  at the Integrations input: it focused a field in another section, and left
+  its own input unnamed. axe reports it as `duplicate-id-aria` in the
+  INCOMPLETE bucket, which is classified indeterminate and never gates — so
+  the capture photographs it without failing, and
+  `settings-dup-id.test.tsx` is the actual guard. Same shape as the
+  collapsed-section gap `section-order.test.ts` guards: a capture that passes
+  over a state nobody has is not evidence.
