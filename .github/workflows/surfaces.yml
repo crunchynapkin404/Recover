@@ -326,7 +326,37 @@ jobs:
           # same reason — it paid a 2.7s cold compile inside the capture's
           # 15s navigation budget on that run.
           curl -fsS -o /dev/null "http://localhost:3200/login" || true
-          curl -fsS -o /dev/null "http://localhost:3200/api/auth/ok" || true
+          # THIS ONE MUST SUCCEED, AND UNTIL 2026-09-04 IT WAS `|| true`.
+          # The three warm-ups above are best-effort: if `/` or `/login` is
+          # still compiling, the capture pays the cost and carries on. This
+          # one is different — it is the ONLY evidence that the auth route
+          # compiled at all, which is the entire reason this step exists.
+          #
+          # On 2026-09-04 (run 33915765703, main at 8c4e9bf6) this curl
+          # returned `curl: (22) The requested URL returned error: 404` and
+          # `|| true` threw that away. The job continued into a capture that
+          # could not possibly succeed, and failed 40 seconds later with
+          # three `page.waitForURL: Timeout`s — which reads like bad
+          # credentials and was not. The tree was byte-identical to one that
+          # had passed this same job an hour earlier.
+          #
+          # So: retry until the route answers, in the same shape as the
+          # `/api/health` loop above, and fail LOUDLY if it never does. A
+          # warm-up that reports success having achieved nothing is worse
+          # than no warm-up, because it moves the error to a step that cannot
+          # explain it.
+          warm=0
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null "http://localhost:3200/api/auth/ok"; then
+              echo "auth route compiled after ${i}s"; warm=1; break
+            fi
+            sleep 1
+          done
+          if [ "$warm" != "1" ]; then
+            echo "::error::/api/auth/ok never answered in 30s — the Better Auth catch-all did not compile. The capture would fail its sign-in with a misleading timeout, so this step fails instead."
+            tail -50 /tmp/next.log
+            exit 1
+          fi
 
       - name: Capture the preview states
         # See the note on the production capture above.
