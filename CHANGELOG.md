@@ -1,5 +1,77 @@
 # Changelog
 
+## v0.138.0 — 2026-09-04 — The ⓘ
+
+### What you will notice
+
+**Train ▸ Week's session-fuelling card is now one line.** Where the open day
+used to carry a whole panel of carbohydrate, fluid and protein ranges, it now
+says `Fuelling: 50-70 g carbs before` and offers an ⓘ beside it. Tap the ⓘ and
+the full guidance — before, during, after, the confidence badge and any
+assumptions — opens in a sheet. Nothing was deleted; it moved one tap away.
+
+**The ⓘ is a link, not a tooltip.** It goes somewhere, so the back button
+closes it, the URL can be shared, and a screen reader announces "Session
+fuelling detail" rather than "Info". A drawer would have kept the whole panel
+on the page, which is the opposite of the point.
+
+**Opening fuelling on a day with nothing planned now says so.** Bookmark
+`?sheet=fuelling`, or open it on a day a replan has since emptied, and the
+sheet says "Needs a session on this day before it can tell you how to fuel
+it" and offers "Add a ride" when the day can still take one.
+
+### Under the hood
+
+**A capture surface had been photographing an empty dialog and reporting it
+as a pass.** `train-fuelling` was declared as `/train?sheet=fuelling` and
+guarded by "did a dialog appear". It did — on a rest day, where the sheet's
+title renders and its body does not. So every run this surface ever had
+audited a modal containing an `<h2>` and nothing else, in all four
+theme/viewport combinations, and reported `0 confirmed` for guidance it had
+never once photographed. In CI it was weekday-dependent, with no refusal
+either way. **`0 indeterminate nodes` was the tell and read as a virtue**: a
+sheet with no paragraphs has nothing to be indeterminate about.
+
+**The fix is a walk, not a URL.** The surface now declares a bare `/train`
+and walks the week strip's own `a[data-date]` links until a day's dialog
+actually contains `Before:`, refusing loudly and naming every day it tried if
+none does — the shape `train-workout` and `train-pick-workout` already use.
+Re-measured: the walk lands on the fixture's one day with a session, 0
+confirmed defects (ceiling 0, unchanged), and 6 indeterminate nodes that are
+the guidance paragraphs themselves. The refusal was mutation-checked by
+pointing it at a string the page cannot contain; it failed the run and
+captured nothing, which is the behaviour that matters.
+
+**Height would not have caught it.** The empty dialog measured 238px and the
+full one 234px — the empty-state panel is bulky. Only the content check tells
+them apart.
+
+**An empty sheet was a keyboard trap in waiting.** The gate read
+`sheetParam === "fuelling" && openDate && openDaySlot`, which its own comment
+described as refusing a session-less day. It refused nothing: `openDayFrom`
+always resolves to a date that IS in the open week, so the condition
+collapsed to "an open week exists". The athlete got a scrim, a focus trap and
+a body-scroll lock over a panel with no focusable content, and the trap's
+zero-focusables branch preventDefaults Tab while the Close control sits
+outside the panel — Escape was the only way out. It now renders the house
+`missing_input` state instead, with `pick-workout` as the `fix` whenever
+`canAddWorkout` admits the day.
+
+**A regression guard that had quietly stopped guarding.** The test file
+pinning fuelling to the open day was updated for the split and ended up
+asserting only the sheet, leaving the on-page line — the exact binding the
+file was written for — uncovered. It now asserts both regions of the same
+render, and the fixtures discriminate by duration band: 50-70 g for the open
+day's four-hour ride, 20-30 g for today's recovery spin.
+
+**Two tests asserting a constant, deleted.** They checked that the sheet-name
+list contains "fuelling" and does not contain "not-a-sheet" — the array, not
+the validator — and both facts are proved at render level in the same file.
+
+**Migrations: none.** No schema change and no stored shape moves; the whole
+release is one component split, one sheet, and the capture that photographs
+it.
+
 ## v0.137.0 — 2026-09-04 — Nothing connected
 
 ### What you will notice
