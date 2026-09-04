@@ -4,6 +4,8 @@ import { renderToReadableStream } from "react-dom/server";
 import { mondayOf, addDaysYmd } from "@/lib/week-plan/service";
 import { TRAIN_SHEETS } from "@/lib/log-href";
 import type { DaySlot } from "@/lib/week-plan/types";
+import { withPurpose } from "@/lib/training-plan";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -130,6 +132,7 @@ async function renderTrain(
     tab?: string;
     sheet?: string;
     availability?: string;
+    day?: string;
   }
 ): Promise<string> {
   requireUserMock.mockResolvedValue({
@@ -163,9 +166,17 @@ async function renderTrainWeekWithSheet(
    * `sheetParam` derivation) — tests of that seam need to drive
    * `availability` independently of `sheet`.
    */
-  availability?: string
+  availability?: string,
+  /**
+   * Task 5's own addition: the "fuelling" sheet is gated on `openDaySlot`
+   * as well as `sheetParam` (see `fuellingSheet`'s own comment in
+   * page.tsx) — with no open day there is no session to fuel. Threaded
+   * through exactly like `tab` and `availability` above, so a test can
+   * point the open day at a date that actually carries a session.
+   */
+  day?: string
 ): Promise<string> {
-  return renderTrain(userId, { sheet, availability });
+  return renderTrain(userId, { sheet, availability, day });
 }
 
 describe.skipIf(!hasDb)(
@@ -1225,3 +1236,86 @@ describe.skipIf(!hasDb)(
     });
   }
 );
+
+// Task 5's own destination (disclosure slice 1): "Session fuelling" for the
+// open day, gated on `openDaySlot` as well as `sheetParam` — see
+// `fuellingSheet`'s own comment in page.tsx. TEST_USER's `seedOpenWeek`
+// above seeds seven EMPTY days (no `workouts` anywhere), so `openDaySlot`
+// resolves for every date but `FuellingDetail` always renders null there —
+// this fixture is what gives one date of the week a real session, the same
+// DaySlot-literal shape fuelling-open-day.test.tsx already builds one with.
+const FUELLING_USER = "test-train-sheet-moves-fuelling";
+const FUELLING_DAY = addDaysYmd(WEEK_START, 2);
+
+async function seedWeekWithSession(userId: string): Promise<void> {
+  const { db, schema } = await import("@/lib/db");
+  await db.insert(schema.users).values({
+    id: userId,
+    name: "Test Athlete",
+    email: `${userId}@example.invalid`,
+  });
+  const [plan] = await db
+    .insert(schema.trainingPlans)
+    .values({
+      userId,
+      title: "Test Plan",
+      raceType: "Ride",
+      raceDate: addDaysYmd(WEEK_START, 90),
+      startDate: WEEK_START,
+      weeksTotal: 16,
+      currentWeek: 1,
+      status: "active",
+      constraints: { daysPerWeek: 5, hoursPerWeek: 8, sports: ["Bike"] },
+    })
+    .returning();
+  const session = withPurpose({
+    day: 2,
+    sport: "Ride",
+    type: "Endurance",
+    durationMins: 90,
+    intensity: "Z2",
+    description: "steady ride",
+    placement: blockPlacement(0),
+  });
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const date = addDaysYmd(WEEK_START, i);
+    return date === FUELLING_DAY
+      ? { ...emptyDay(date), status: "planned" as const, workouts: [session] }
+      : emptyDay(date);
+  });
+  await db.insert(schema.weekPlans).values({
+    userId,
+    planId: plan.id,
+    weekStart: WEEK_START,
+    skeletonWeek: 1,
+    days,
+    status: "open",
+  });
+}
+
+describe.skipIf(!hasDb)("TrainPage: the fuelling sheet", () => {
+  beforeAll(async () => {
+    await seedWeekWithSession(FUELLING_USER);
+  });
+
+  afterAll(async () => {
+    const { db, schema } = await import("@/lib/db");
+    await db.delete(schema.users).where(eq(schema.users.id, FUELLING_USER));
+  });
+
+  it("opens the fuelling sheet with the day's guidance", async () => {
+    const html = await renderTrainWeekWithSheet(
+      FUELLING_USER,
+      "fuelling",
+      undefined,
+      FUELLING_DAY
+    );
+    // The dialog itself, not just the guidance text — without this half a
+    // sheetOverlays entry that's silently missing (falling through `??
+    // null`) could still leave "Before:" absent for the wrong reason
+    // (no dialog at all) and this test would not tell the two apart.
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain('aria-label="Session fuelling"');
+    expect(html).toContain("Before:");
+  });
+});

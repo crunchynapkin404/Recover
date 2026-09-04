@@ -121,6 +121,15 @@ async function seedOpenWeek(userId: string, days: DaySlot[]): Promise<void> {
   });
 }
 
+/**
+ * Disclosure slice 1, task 5: the fuelling detail this test is about no
+ * longer renders on the page itself — FuellingCard collapsed to
+ * FuellingLine (a summary + ⓘ) there, and the per-session detail this file
+ * checks (type, duration) moved into the "fuelling" sheet, opened here with
+ * `sheet: "fuelling"` alongside `day`. The open-day binding this whole file
+ * guards (C1) is unchanged: `fuellingSheet` in page.tsx is still built from
+ * `openDaySlot`/`openDate`, the same values FuellingCard used to read.
+ */
 async function renderTrainWeekAs(userId: string, day: string): Promise<string> {
   requireUserMock.mockResolvedValue({
     id: userId,
@@ -129,7 +138,7 @@ async function renderTrainWeekAs(userId: string, day: string): Promise<string> {
   });
   const { default: TrainPage } = await import("./page");
   const stream = await renderToReadableStream(
-    <TrainPage searchParams={Promise.resolve({ day })} />
+    <TrainPage searchParams={Promise.resolve({ day, sheet: "fuelling" })} />
   );
   await stream.allReady;
   const reader = stream.getReader();
@@ -184,18 +193,24 @@ describe.skipIf(!hasDb)("TrainPage: FuellingCard binds to the open day", () => {
 
   it("shows the OPEN day's fuelling, not today's, when both carry a session", async () => {
     const html = await renderTrainWeekAs(TODAY_HAS_SESSION_USER, OPEN_DAY);
-    const idx = html.indexOf("Session fuelling");
-    expect(idx).toBeGreaterThan(-1);
-    const section = html.slice(idx, idx + 800);
+    // Slice from the dialog itself, not from the first "Session fuelling"
+    // text on the page — FuellingLine's own ⓘ carries an sr-only "Session
+    // fuelling detail" label that appears EARLIER, inline, next to whatever
+    // day's summary the page happens to show; only the sheet's own dialog
+    // (its `<h2>` title is this same string) holds the actual per-session
+    // detail this test is about.
+    const dialogIdx = html.indexOf('role="dialog"');
+    expect(dialogIdx).toBeGreaterThan(-1);
+    const section = html.slice(dialogIdx, dialogIdx + 1500);
     // The open day's session (Saturday's 240-minute long ride) is what's
     // shown — a wrong numeric fuelling claim attached to the wrong session
     // is exactly the failure this pins. React SSR splits `{type} · {mins}
     // min` across text/comment nodes, so these check the type name and the
     // bare duration number rather than a literal "240 min" substring.
-    expect(section).toContain(OPEN_DAY);
+    // FuellingDetail itself never renders the date (only type/duration), so
+    // there is no OPEN_DAY/TODAY string to check for inside the sheet body.
     expect(section).toContain("Long");
     expect(section).toContain("240");
-    expect(section).not.toContain(TODAY);
     expect(section).not.toContain("Recovery");
   });
 
@@ -204,10 +219,9 @@ describe.skipIf(!hasDb)("TrainPage: FuellingCard binds to the open day", () => {
     // so the old todaySlot-bound card rendered nothing at all even though
     // the open day (Saturday) has a real session to fuel.
     const html = await renderTrainWeekAs(TODAY_IS_REST_USER, OPEN_DAY);
-    const idx = html.indexOf("Session fuelling");
-    expect(idx).toBeGreaterThan(-1);
-    const section = html.slice(idx, idx + 800);
-    expect(section).toContain(OPEN_DAY);
+    const dialogIdx = html.indexOf('role="dialog"');
+    expect(dialogIdx).toBeGreaterThan(-1);
+    const section = html.slice(dialogIdx, dialogIdx + 1500);
     expect(section).toContain("Long");
     expect(section).toContain("240");
   });

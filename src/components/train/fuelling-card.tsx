@@ -120,35 +120,3 @@ export function FuellingDetail({
     </div>
   );
 }
-
-/**
- * Compatibility shim for `src/app/train/page.tsx`, which still imports the
- * pre-split card directly. A later task wires FuellingLine/FuellingDetail
- * into the page's disclosure sheet and removes this; until then it keeps
- * `tsc --noEmit` and the page's current on-screen behavior green by
- * reassembling the section + heading this split dropped from FuellingDetail
- * around the unchanged detail body.
- */
-export function FuellingCard({
-  date,
-  workouts,
-  bodyMassKg,
-}: {
-  date: string;
-  workouts: ScheduledWorkout[];
-  bodyMassKg: number | null;
-}) {
-  if (workouts.length === 0) return null;
-
-  return (
-    <section className="glass mb-5 overflow-hidden rounded-[18px] p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-label font-bold uppercase tracking-[0.12em] text-ink-secondary">
-          Session fuelling
-        </h2>
-        <span className="text-label text-ink-muted">{date}</span>
-      </div>
-      <FuellingDetail date={date} workouts={workouts} bodyMassKg={bodyMassKg} />
-    </section>
-  );
-}

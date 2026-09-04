@@ -31,7 +31,7 @@ import { WeekDayList } from "@/components/train/week-day-list";
 import { workoutForDay } from "@/lib/interval/for-day";
 import { SeasonTimelineCard } from "@/components/train/season-timeline-card";
 import { SeasonProgress } from "@/components/train/season-progress";
-import { FuellingCard } from "@/components/train/fuelling-card";
+import { FuellingLine, FuellingDetail } from "@/components/train/fuelling-card";
 import { PlanStyleSwitch } from "@/components/train/plan-style-switch";
 import { SeasonModeSwitch } from "@/components/train/season-mode-switch";
 import { WeekRationale } from "@/components/week/week-rationale";
@@ -1132,6 +1132,24 @@ async function WeekTab({
       </WeekSheet>
     ) : null;
 
+  // Session fuelling for the open day. Gated on `openDaySlot` as well as
+  // `sheetParam`: with no open day there is no session to fuel, and an empty
+  // sheet reachable only by typing the URL is the state `whyWeekSheet`'s own
+  // comment above refuses for the same reason.
+  const fuellingSheet =
+    sheetParam === "fuelling" && openDate && openDaySlot ? (
+      <WeekSheet
+        title="Session fuelling"
+        closeHref={resolvedHref({ sheet: "" })}
+      >
+        <FuellingDetail
+          date={openDate}
+          workouts={openDaySlot.workouts}
+          bodyMassKg={bodyMassKg}
+        />
+      </WeekSheet>
+    ) : null;
+
   // The "plan setup" destination (slice 2, task 2): PlanStyleSwitch and
   // SeasonModeSwitch (with the note explaining them), the Standard week
   // Collapsible's contents and the Remaining skeleton Collapsible's
@@ -1454,9 +1472,10 @@ async function WeekTab({
   // another `??`. Each entry is still independently gated above (e.g.
   // whyWeekSheet is null unless `sheetParam === "why-week" && week`), so
   // indexing by `sheetParam` picks the one real overlay. Every TRAIN_SHEETS
-  // member has an entry as of task 5 ("plan-review" was the last); the `??
-  // null` below is what a future retired destination would fall through to,
-  // not a gap this map still has.
+  // member had an entry as of that task's own task 5 ("plan-review" was the
+  // last); disclosure slice 1's task 5 added "fuelling" on top, once
+  // TRAIN_SHEETS grew that member. The `?? null` below is what a future
+  // retired destination would fall through to, not a gap this map still has.
   const sheetOverlays: Partial<Record<TrainSheetName, React.ReactNode>> = {
     "why-week": whyWeekSheet,
     "plan-setup": planSetupSheet,
@@ -1464,6 +1483,7 @@ async function WeekTab({
     availability: availabilitySheet,
     "plan-review": planReviewSheet,
     "pick-workout": pickWorkoutSheet,
+    fuelling: fuellingSheet,
   };
 
   // The page's one pinned primary action (review finding 1, task 4's fix
@@ -1623,12 +1643,18 @@ async function WeekTab({
               Wednesday spent looking at Saturday's long ride showed
               Wednesday's own fuelling instead (or nothing, when Wednesday
               was a rest day). The spec (§3, "The week card") puts fuelling
-              INSIDE the open day; openDaySlot/openDate is that day. */}
-            {openDaySlot && openDaySlot.workouts.length > 0 && (
-              <FuellingCard
+              INSIDE the open day; openDaySlot/openDate is that day.
+              Disclosure slice 1, task 5: the open card (formerly
+              FuellingCard) collapsed to this one line plus an ⓘ — the detail
+              itself now lives in `fuellingSheet` above, opened from
+              `href`. `openDaySlot &&` stays (FuellingLine itself only
+              handles an empty `workouts` array, not a missing day slot). */}
+            {openDaySlot && (
+              <FuellingLine
                 date={openDate}
                 workouts={openDaySlot.workouts}
                 bodyMassKg={bodyMassKg}
+                href={resolvedHref({ sheet: "fuelling" })}
               />
             )}
 
