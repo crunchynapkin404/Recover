@@ -970,7 +970,7 @@ SCREENSHOT_BASE_URL=http://localhost:3200 OWNER_EMAIL=dev@recover.local \
   npx tsx scripts/verify-surfaces.ts probe-fuelling --only=train-fuelling
 ```
 
-`train-fuelling` (`/train?sheet=fuelling`, gated on `sheetOpenGuard` for the
+~~`train-fuelling` (`/train?sheet=fuelling`, gated on `sheetOpenGuard` for the
 same reason `train-availability` needs it — the sheet shares a pathname with
 plain `/train`) captured cleanly at all 4 theme/viewport combinations.
 **Axe: 0 confirmed defects, 0 indeterminate nodes** — verified against
@@ -978,7 +978,43 @@ plain `/train`) captured cleanly at all 4 theme/viewport combinations.
 `{"confirmedRuleRows": 0, "confirmedNodes": 0, "indeterminateRuleRows": 0, "indeterminateNodes": 0}`.
 The ratchet ceiling stayed at **0**, and unlike the gradient-background
 surfaces this document usually has to caveat, this one has no indeterminate
-nodes to explain away either.
+nodes to explain away either.~~
+
+**That run audited an EMPTY dialog, and this paragraph's own numbers were the
+tell.** Corrected by the final whole-branch review (C1). `/train?sheet=fuelling`
+carries no `?day=`, so `openDayFrom` picked the open week's first day —
+2026-08-24, a rest day, because this fixture's only session sits on
+2026-08-30. `FuellingDetail` returns null on a rest day, but `BottomSheet`
+still renders the panel, the `role="dialog"` and the `<h2>Session
+fuelling</h2>`, so `sheetOpenGuard` saw a visible dialog and passed. **Zero
+indeterminate nodes was not a clean surface; it was an empty one** — the three
+`color-contrast` nodes the real body produces are the Before/During/After
+paragraphs, which axe files as `elmPartiallyObscuring` because the sheet
+overlaps the scrim. A sheet with no paragraphs has nothing to be
+indeterminate about.
+
+The surface now declares a bare `/train` and walks the week strip's own
+`a[data-date]` links until a day's dialog contains `Before:`, refusing loudly
+if none does (`openFuellingDay` in `scripts/verify-surfaces.ts`; the same
+shape as `openPlannedDay` and `openEmptyDayPicker`). Re-run 2026-09-04 against
+the same dev fixture and standalone build:
+
+```
+SCREENSHOT_BASE_URL=http://localhost:3200 OWNER_EMAIL=dev@recover.local \
+  npx tsx scripts/verify-surfaces.ts probe-fix --only=train-fuelling
+```
+
+The walk landed on **2026-08-30**, the fixture's one day with a session, and
+photographed the guidance at all 4 theme/viewport combinations: `Endurance ·
+85 min`, `high`, and the three ranges. **Axe: 0 confirmed defects (ceiling 0,
+unchanged), 6 indeterminate nodes across 2 rule rows** — 3 per phone
+combination, all `color-contrast`/`elmPartiallyObscuring` on the three
+guidance paragraphs, which is what an audited body looks like on this
+surface. Measured against the same fixture, the dialog the old URL opens
+holds 81 characters and no `Before:`; the day the walk reaches holds 199 and
+has all three lines. Note the heights are nearly identical (238px vs 234px):
+a size check alone would NOT have caught this, which is why the guard asserts
+the content.
 
 ### Choice load, measured
 
