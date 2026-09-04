@@ -128,6 +128,8 @@ export const TRAIN_SHEETS = [
   "plan-review",
   /** The library picker, opened from an empty day with `?day=` alongside. */
   "pick-workout",
+  /** Session fuelling for one day, opened with `?day=` alongside. */
+  "fuelling",
 ] as const;
 
 export type TrainSheetName = (typeof TRAIN_SHEETS)[number];

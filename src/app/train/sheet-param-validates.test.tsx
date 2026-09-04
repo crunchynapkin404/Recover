@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { renderToReadableStream } from "react-dom/server";
 import { mondayOf, addDaysYmd } from "@/lib/week-plan/service";
+import { TRAIN_SHEETS } from "@/lib/log-href";
 import type { DaySlot } from "@/lib/week-plan/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -385,6 +386,14 @@ describe.skipIf(!hasDb)(
       const open = await renderTrainWeekWithSheet(TEST_USER, "availability");
       const matches = open.match(INTAKE_FORM_WEEKDAY_SPAN);
       expect((matches ?? []).length).toBeGreaterThan(0);
+    });
+
+    it("accepts the fuelling sheet", () => {
+      expect(TRAIN_SHEETS).toContain("fuelling");
+    });
+
+    it("still rejects a sheet nobody defined", () => {
+      expect(TRAIN_SHEETS.find((s) => s === "not-a-sheet")).toBeUndefined();
     });
   }
 );
