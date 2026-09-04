@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v0.137.0**. History through v0.119 is preserved in
+Current release: **v0.138.0**. History through v0.119 is preserved in
 [`docs/archive/ROADMAP-through-v0.119.md`](archive/ROADMAP-through-v0.119.md) —
 Phases 1–4, all complete. It is a record, not a plan.
 
@@ -344,7 +344,9 @@ week`, `Plan setup`, `Races`, `Availability` and the 21-row draft
       release until slice 2 existed. The prediction was ~1.2 screens and was
       not met: the session-fuelling card and the race chip still sit on the
       page, both assigned an `ⓘ` destination the spec describes and this
-      release does not build. There is no `ⓘ` anywhere in the app yet.
+      release does not build. There was no `ⓘ` anywhere in the app yet —
+      **v0.138.0 built the first one**, and the fuelling card is the call
+      site it collapsed; the race chip is still open.
       Four defects reached that branch which 3204 passing tests were green
       through — Today's page going fully inert, Coach dying on desktop, a
       prose-only sheet unscrollable by keyboard, and two capture surfaces
@@ -645,10 +647,13 @@ Named so they are not rediscovered; unscheduled so they are not promises.
 - **The week card's totals line** — `5 sessions · 4.5h of 6.3h`, specified in
   the week-surface redesign and never built; struck there 2026-09-04. Nothing
   blocks it — `plannedMins`, `offeredMins` and the session count are already
-  computed on the page — but it was specified carrying an `ⓘ`, and there is
-  still no `ⓘ` anywhere in the app, so building it alone would ship half of a
-  design whose other half is the reason the week card still measures 1.84
-  screens against a predicted ~1.2.
+  computed on the page. **Its stated blocker is gone as of v0.138.0**
+  (corrected 2026-09-04): this bullet said the line "was specified carrying an
+  `ⓘ`, and there is still no `ⓘ` anywhere in the app". There is one now.
+  `src/components/ui/disclosure-link.tsx` is the primitive, wired at exactly
+  one call site — the week card's session-fuelling line — so the totals line
+  would no longer be shipping half a design. What remains open is a judgement,
+  not a dependency: whether a second `ⓘ` on the same card earns its row.
 - **On-ramps for the three dormant-but-kept features** — Deep Biology,
   outbound webhooks, coach long-term memory.
 - **Fitbit / Google Health direct, and Cycle-Aware.**

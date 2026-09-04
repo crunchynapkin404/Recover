@@ -882,3 +882,222 @@ That was not true as written: per-day unpin existed nowhere else, and
 meant an athlete who overrode Tuesday and wanted only Tuesday back had to
 clear the whole week and re-override the rest. Moving the capability first,
 in its own commit, is what made the claim true.
+
+---
+
+## 2026-09-04 — Task 7 of `.superpowers/sdd/2026-09-04-disclosure-slice1-fuelling/`: the fuelling collapse, measured
+
+**The decision point for slices 2 and 3.** This slice collapsed the open
+`SessionFuelling` card (Before/During/After carb-and-fluid guidance) into one
+summary line plus a `ⓘ` linking to a `?sheet=fuelling` bottom sheet. The spec's
+own honest prediction was that the two numbers would move in **opposite
+directions** — the `ⓘ` is a new control, the collapse removes screen height —
+and this section measures whether that traded favourably, following the same
+method and table columns as every section above so the row is comparable.
+
+Branch `spec/disclosure-affordance`, measured against the same dev DB
+(`127.0.0.1:5434`) every prior section used — `dev@recover.local`, 11
+`training_plans` rows, 6 `races`, 21 `availability_defaults` rows, checked
+directly before trusting anything, per this document's own recurring
+convention.
+
+**A fixture fact worth stating before the numbers: the seeded "open week" has
+not advanced since the earliest measurements in this document.** The Week
+tab's day strip still runs `2026-08-24`–`2026-08-30` — the same seven dates
+implied by the 2026-08-28 and 2026-08-31 sections above — regardless of
+today's real date (2026-09-04). The default `/train` (no `?day=`) therefore
+opens **Monday, a rest day with nothing scheduled**, on which `FuellingLine`
+renders `null` both before and after this slice (it renders nothing when
+`workouts.length === 0` — see `fuelling-card.tsx`'s own doc comment). Checked
+directly: the default-day reading is **byte-identical** before and after this
+slice's commits, 1151px / 1.36 screens / 13 surface controls both times —
+because there is nothing on that day to collapse either way. **Only one day in
+this fixture's week has a session at all: Sunday, `2026-08-30`.** Every number
+below that means anything about the trade being measured uses
+`?day=2026-08-30`; the rest-day default is reported too, for completeness and
+because a null result is still a result.
+
+**A second fact, checked rather than assumed: the recorded 1.84/17 baseline is
+not safely comparable to a raw "measure it today" reading.** The
+2026-08-31 "body flip" section above already found this exact page drifted
+1.84 → 1.36 screens with **zero code change**, purely from seeded fixture
+data moving on between measurement dates — and warns explicitly that "a
+comparison across fixture states is not a comparison at all." Rather than
+repeat that mistake, this section isolates the slice's own effect with a
+controlled same-session A/B, the same technique the body-flip and slice-3
+sections above used: `src/app/train/page.tsx` and
+`src/components/train/fuelling-card.tsx` were temporarily restored to their
+state at `0b78153f`, the commit immediately before this slice started
+(`98137dd8`, the plan doc, is its parent).
+
+**The control is scoped to two files, and the slice touched four.**
+`git diff --stat 0b78153f 94a10322` (94a10322 is this slice's tip before
+Task 6) shows the full set: `src/app/train/page.tsx`,
+`src/components/train/fuelling-card.tsx` — both reverted for the control —
+plus two production files that were **not** reverted:
+`src/lib/fuelling/summary.ts` (new) and `src/lib/log-href.ts` (`"fuelling"`
+added to the `TRAIN_SHEETS` tuple). Naming and ruling out those two, rather
+than only checking the two files actually swapped, is the honest version of
+this claim — a check scoped to the reverted files can only ever confirm
+itself. Both are inert for the specific routes measured, for two different,
+independently-verified reasons:
+
+- **`src/lib/fuelling/summary.ts`** exports `fuellingSummary`, and
+  `grep -rn "fuellingSummary" src/` outside test files shows exactly one
+  importer: `fuelling-card.tsx`. The control build ran the **old**
+  `fuelling-card.tsx` (from `0b78153f`), which does not import it — so the
+  new file is never loaded, let alone executed, in the control build. Not a
+  behavioural difference; a file the control's import graph never reaches.
+- **`src/lib/log-href.ts`**'s `TRAIN_SHEETS` gained one member, `"fuelling"`.
+  Its only functional consumer, in both the old page.tsx and current
+  HEAD's, is `TRAIN_SHEETS.find((s) => s === sp.sheet)` (`sheet-host.tsx`
+  also names `TRAIN_SHEETS` but only in a comment, and is not rendered on
+  `/train`). Neither URL this section measures — `/train` and
+  `/train?day=2026-08-30` — carries a `?sheet=` param, so `sp.sheet` is
+  `undefined` on both, and `.find` over a tuple of strings never matches
+  `undefined`. Whether or not `"fuelling"` is a member of the array, the
+  `.find` returns the same `undefined` either way. The extra member cannot
+  change a result neither reading ever asks it to compute.
+
+Both reverted files, both rebuilt, measured, then restored to `HEAD` and
+rebuilt again — same dev DB, same day, minutes apart, nothing else
+different.
+
+### Capture and axe (Task 6)
+
+```
+SCREENSHOT_BASE_URL=http://localhost:3200 OWNER_EMAIL=dev@recover.local \
+  npx tsx scripts/verify-surfaces.ts probe-fuelling --only=train-fuelling
+```
+
+~~`train-fuelling` (`/train?sheet=fuelling`, gated on `sheetOpenGuard` for the
+same reason `train-availability` needs it — the sheet shares a pathname with
+plain `/train`) captured cleanly at all 4 theme/viewport combinations.
+**Axe: 0 confirmed defects, 0 indeterminate nodes** — verified against
+`.screenshots/probe-fuelling/axe-report.json`'s own `totals`:
+`{"confirmedRuleRows": 0, "confirmedNodes": 0, "indeterminateRuleRows": 0, "indeterminateNodes": 0}`.
+The ratchet ceiling stayed at **0**, and unlike the gradient-background
+surfaces this document usually has to caveat, this one has no indeterminate
+nodes to explain away either.~~
+
+**That run audited an EMPTY dialog, and this paragraph's own numbers were the
+tell.** Corrected by the final whole-branch review (C1). `/train?sheet=fuelling`
+carries no `?day=`, so `openDayFrom` picked the open week's first day —
+2026-08-24, a rest day, because this fixture's only session sits on
+2026-08-30. `FuellingDetail` returns null on a rest day, but `BottomSheet`
+still renders the panel, the `role="dialog"` and the `<h2>Session
+fuelling</h2>`, so `sheetOpenGuard` saw a visible dialog and passed. **Zero
+indeterminate nodes was not a clean surface; it was an empty one** — the three
+`color-contrast` nodes the real body produces are the Before/During/After
+paragraphs, which axe files as `elmPartiallyObscuring` because the sheet
+overlaps the scrim. A sheet with no paragraphs has nothing to be
+indeterminate about.
+
+The surface now declares a bare `/train` and walks the week strip's own
+`a[data-date]` links until a day's dialog contains `Before:`, refusing loudly
+if none does (`openFuellingDay` in `scripts/verify-surfaces.ts`; the same
+shape as `openPlannedDay` and `openEmptyDayPicker`). Re-run 2026-09-04 against
+the same dev fixture and standalone build:
+
+```
+SCREENSHOT_BASE_URL=http://localhost:3200 OWNER_EMAIL=dev@recover.local \
+  npx tsx scripts/verify-surfaces.ts probe-fix --only=train-fuelling
+```
+
+The walk landed on **2026-08-30**, the fixture's one day with a session, and
+photographed the guidance at all 4 theme/viewport combinations: `Endurance ·
+85 min`, `high`, and the three ranges. **Axe: 0 confirmed defects (ceiling 0,
+unchanged), 6 indeterminate nodes across 2 rule rows** — 3 per phone
+combination, all `color-contrast`/`elmPartiallyObscuring` on the three
+guidance paragraphs, which is what an audited body looks like on this
+surface. Measured against the same fixture, the dialog the old URL opens
+holds 81 characters and no `Before:`; the day the walk reaches holds 199 and
+has all three lines. Note the heights are nearly identical (238px vs 234px):
+a size check alone would NOT have caught this, which is why the guard asserts
+the content.
+
+### Choice load, measured
+
+Same method as every section above: visible+enabled
+`button, a[href], input, select, textarea, [role=button]`, split appChrome /
+tabs / surface via `document.querySelectorAll` (not a Playwright locator, for
+the dev-mode-indicator reason the earliest section gives — moot against this
+standalone production build, kept for parity), phone viewport 390×844 CSS px
+at `deviceScaleFactor: 2`, signed in as `dev@recover.local`. Visibility
+checked with `Element.checkVisibility({checkOpacity: true,
+checkVisibilityCSS: true})` (the same primitive the slice-3 section names for
+`inert`), `enabled` meaning neither `.disabled` nor `aria-disabled="true"`.
+Buckets identified structurally, byte-for-byte the same as every prior
+section: `appChrome` = everything inside `nav.fixed.bottom-8` (`BottomNav`);
+`tabs` = everything inside `nav[aria-label="Train sections"]` (`TrainTabs`);
+`surface` = everything else matching the selector. Script: another ad hoc
+Playwright pass (still not committed — this repo still has no committed
+choice-load counter). **`appChrome` came out 5 and `tabs` came out 3 on every
+row below** — the method's own check, satisfied.
+
+| Surface                                                                             | surface | tabs | appChrome | hidden/disabled |   scroll |
+| ----------------------------------------------------------------------------------- | ------: | ---: | --------: | --------------: | -------: |
+| Train ▸ Week — **before** (2026-08-26, recorded)                                    |      17 |    3 |         5 |               7 |     1.84 |
+| Train ▸ Week — **control**, rebuilt at `0b78153f`, default (rest day, `2026-08-24`) |      13 |    3 |         5 |               6 |     1.36 |
+| Train ▸ Week — **control**, rebuilt at `0b78153f`, `?day=2026-08-30` (session day)  |      13 |    3 |         5 |               6 |     1.63 |
+| Train ▸ Week — **after** (this slice, HEAD), default (rest day, `2026-08-24`)       |      13 |    3 |         5 |               6 |     1.36 |
+| Train ▸ Week — **after** (this slice, HEAD), `?day=2026-08-30` (session day)        |  **14** |    3 |         5 |               6 | **1.41** |
+
+**The fuelling sheet's own scrollable extent** (`[role="dialog"]`,
+`scrollHeight` ÷ `clientHeight`, same question the page number answers for
+the page): on the one day with a session, the sheet is **232px scrollHeight /
+232px clientHeight — 1.00 sheet-screens**. It fits with no scrolling at all;
+the single workout's Before/During/After guidance is short enough that the
+sheet never needs the `overflow-y: auto` the wrapper reserves.
+
+### What it says
+
+**The prediction held, isolated to the one day it can be tested on.** The
+controlled same-fixture, same-day A/B is the number to trust: on
+`2026-08-30`, the only day in this seeded week with a session,
+**screens fell 1.63 → 1.41 (−0.22, ≈13% shorter) and surface controls rose
+13 → 14 (+1)** — exactly the `ⓘ`, and nothing else: `FuellingLine`'s only
+interactive element is the `DisclosureLink`, so the entire control delta is
+accounted for by name, not just by count. `hidden/disabled` and `tabs` did
+not move. That is both halves of the spec's "opposite directions" prediction,
+confirmed in the same session against the same DOM.
+
+**On the fixture's default (rest) day, the slice changes nothing at all** —
+1151px / 1.36 screens / 13 controls, byte-identical whether `FuellingCard`'s
+old body or `FuellingLine`'s new one is in the tree, because
+`fuellingSummary` returns nothing for a day with no session either way. A
+slice that only ever fires when there is something to fuel cannot be judged
+on a day with nothing to fuel; recorded here so the zero is legible as a
+finding rather than hidden by only reporting the day that moved.
+
+**The recorded 1.84/17 baseline is not the number this slice should be
+judged against, and the control build proves why.** Rebuilt from
+`0b78153f` — the last commit before this slice touched either file, so it is
+exactly what the page looked like a few hours ago, not a redesign away — the
+control measures **13 surface controls / 1.63 screens** on the session day,
+already well under the recorded 17/1.84. That gap (17 → 13, 1.84 → 1.63)
+predates this slice entirely and matches, almost exactly, the drift the
+2026-08-31 body-flip section already found and named ("banked 1.84, now
+1.36") on the same frozen fixture. Reporting "1.84 → 1.41" as this slice's
+achievement would silently credit it with someone else's drift; reporting
+"1.63 → 1.41" credits it with only what it actually did.
+
+**Naively against the recorded baseline, for the record, with the caveat
+attached:** default-day after is 1.36 screens / 13 controls against 1.84/17
+(both fell); session-day after is 1.41 screens / 14 controls against 1.84/17
+(screens fell, controls fell too — because the drift above outweighs this
+slice's own `+1`). Neither naive reading should be read as "controls went up
+as predicted," because at face value they didn't — only the controlled A/B
+isolates the `+1` the spec predicted, and it is there, exactly where the
+`ⓘ` is.
+
+**Verdict: the trade landed, on the day it could.** Screens fell and
+controls rose, in opposite directions, exactly as the spec's honest
+prediction said they would — a real, small, correctly-attributed win, not
+the sweeping change the raw baseline-vs-today numbers would suggest if
+fixture drift went unchecked. Slices 2 and 3 are not blocked by this
+measurement: the mechanism the whole approach depends on (sheet swallows
+detail, `ⓘ` is the only new control, screens drop on the day there's
+content to drop) is demonstrated, isolated, and small enough that a rest-day
+athlete notices nothing and a session-day athlete gets a shorter page with
+one more, clearly-named way to see the detail that moved off it.

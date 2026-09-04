@@ -345,6 +345,27 @@ const SURFACES: Record<string, string> = {
   // database's own `availability_defaults` rows are LEGACY (`start: null`),
   // which the timeline declines to place, so they do not stand in for it.
   "train-availability": "/train?sheet=availability",
+  // The Session fuelling sheet, DRIVEN onto a day that has a session — a
+  // bare `/train` like `train-workout` above, not a URL carrying the sheet.
+  //
+  // C1, final whole-branch review: this entry was `/train?sheet=fuelling`
+  // behind `sheetOpenGuard`, and it was a false green in every run it ever
+  // had. With no `?day=`, `openDayFrom` resolves to today when today is in
+  // the open week; the local fixture's only session sits on one date, so the
+  // open day was a REST day. `FuellingDetail` renders null there, but
+  // BottomSheet still renders its panel, its `role="dialog"` and its
+  // `<h2>Session fuelling</h2>` — so the guard saw a visible dialog and
+  // passed over a modal holding a title and nothing else, reporting "0
+  // confirmed" for a surface whose entire reason to exist is the guidance
+  // body it had never once photographed. In CI it was worse: `capture-main`
+  // opens today, so whether anything was in the sheet depended on the
+  // weekday the run landed on, with no refusal in either direction.
+  //
+  // `train-availability` above CAN carry its sheet in the URL because that
+  // sheet is day-independent. This one is not, so it mirrors `train-workout`
+  // instead and walks the week strip until a day actually produces guidance.
+  // See openFuellingDay, which refuses rather than falling back.
+  "train-fuelling": "/train",
   // Coach is a multi-state surface behind one URL, and `/coach` alone renders
   // `messages.length === 0` — the empty state. Until slice 4, every message
   // bubble, the timestamp, ArtifactCard, the typing indicator and the error
@@ -1028,6 +1049,72 @@ async function openPlannedDay(page: Page): Promise<void> {
   );
 }
 
+/**
+ * `train-fuelling` — the Session fuelling sheet, on a day whose guidance is
+ * actually in it.
+ *
+ * The third of the walk-the-strip preparers, and the one that had to exist.
+ * `openPlannedDay` looks for a day WITH a session and `openEmptyDayPicker`
+ * for one without; this looks for a day whose fuelling sheet has a BODY.
+ * Presence of the dialog is not that: `?sheet=fuelling` opens on every day
+ * of an open week by design (a session-less day now renders a `missing_input`
+ * refusal inside the sheet rather than an empty panel — see `fuellingSheet`
+ * in src/app/train/page.tsx), so a guard that waits for `[role="dialog"]`
+ * passes on a rest day and photographs the refusal under a name promising
+ * the guidance. That is what this surface did for its whole life.
+ *
+ * `Before:` is the assertion because it is the first line of the body and
+ * belongs to nothing else on the page — the summary line the ⓘ sits beside
+ * says "carbs before", not "Before:", and the refusal says neither.
+ *
+ * REFUSES rather than falling back, like both of its neighbours. Capturing
+ * the refusal, or the ordinary Train tab, under a name that promises
+ * per-session fuelling is worse than capturing nothing: it is a green number
+ * for a picture of something else, which is the single failure mode this
+ * file's header exists to prevent.
+ */
+async function openFuellingDay(page: Page): Promise<void> {
+  const links = page.locator("a[data-date]");
+  const dates: string[] = [];
+  for (let i = 0; i < (await links.count()); i++) {
+    const d = await links.nth(i).getAttribute("data-date");
+    if (d) dates.push(d);
+  }
+  if (dates.length === 0) {
+    throw new Error(
+      "train-fuelling: the week strip rendered no a[data-date] links, so " +
+        "there is no day to open. Refusing to capture the default Train tab " +
+        "under a second name."
+    );
+  }
+
+  const seen: string[] = [];
+  for (const date of dates) {
+    await page.goto(`${BASE_URL}/train?day=${date}&sheet=fuelling`, {
+      waitUntil: "networkidle",
+    });
+    const dialog = page.locator('[role="dialog"]').first();
+    if (!(await dialog.isVisible().catch(() => false))) {
+      seen.push(`${date}: no dialog`);
+      continue;
+    }
+    const body = (await dialog.textContent()) ?? "";
+    if (body.includes("Before:")) return;
+    seen.push(`${date}: dialog but no "Before:"`);
+  }
+
+  throw new Error(
+    `train-fuelling: none of ${dates.length} days produced a "Session ` +
+      'fuelling" dialog containing "Before:" — the first line of the ' +
+      "per-session guidance this surface exists to photograph. Observed: " +
+      `${seen.join("; ")}. Either the seed left no day with a session in ` +
+      "the open week, or FuellingDetail stopped rendering and every day now " +
+      "shows the missing_input refusal. Both are findings. Capturing anyway " +
+      "would file an empty or refusing sheet under a name promising the " +
+      "guidance, which is exactly what this surface did before C1."
+  );
+}
+
 const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
   "train-plan-preview": waitForTwoArcPreview,
   "train-race-pacing": waitForRacePacing,
@@ -1051,6 +1138,7 @@ const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
     "train-availability",
     "?sheet=availability"
   ),
+  "train-fuelling": openFuellingDay,
   "train-workout": openPlannedDay,
   "train-pick-workout": openEmptyDayPicker,
   "coach-history": waitForHistoryPanel,

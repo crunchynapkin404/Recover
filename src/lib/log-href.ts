@@ -114,11 +114,17 @@ export function retiredTabRedirect(tab: string | undefined): string | null {
 }
 
 /**
- * The destinations Week's content moved behind in slice 2 — everything the
- * page used to only explain or configure. Every name is declared here now,
- * even though a given task may only render one of them: tasks 2-5 consume
- * this same union, and narrowing it to what task 1 implements would make
- * each of them edit this list in turn.
+ * Every `?sheet=` destination Week offers. The list now spans three strands
+ * and is no longer one release's worth of moves: the first six came from the
+ * v0.123.0 slice that moved everything the page only explained or configured
+ * behind a row; `pick-workout` from the library picker (v0.136.0); and
+ * `fuelling` from the ⓘ disclosure strand, which collapses an open card into
+ * a summary line plus a link rather than relocating a control.
+ *
+ * Declared centrally, not per-task: `page.tsx` validates `?sheet=` against
+ * this union before it reaches the render, so a destination that is not
+ * named here is not reachable at all, and a name added here without a
+ * `sheetOverlays` entry falls through to `?? null`.
  */
 export const TRAIN_SHEETS = [
   "why-week",
@@ -128,6 +134,8 @@ export const TRAIN_SHEETS = [
   "plan-review",
   /** The library picker, opened from an empty day with `?day=` alongside. */
   "pick-workout",
+  /** Session fuelling for one day, opened with `?day=` alongside. */
+  "fuelling",
 ] as const;
 
 export type TrainSheetName = (typeof TRAIN_SHEETS)[number];
