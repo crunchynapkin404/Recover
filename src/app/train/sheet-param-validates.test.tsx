@@ -393,7 +393,9 @@ describe.skipIf(!hasDb)(
     });
 
     it("still rejects a sheet nobody defined", () => {
-      expect(TRAIN_SHEETS.find((s) => s === "not-a-sheet")).toBeUndefined();
+      expect((TRAIN_SHEETS as readonly string[]).includes("not-a-sheet")).toBe(
+        false
+      );
     });
   }
 );
