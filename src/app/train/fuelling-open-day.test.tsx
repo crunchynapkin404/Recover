@@ -152,7 +152,7 @@ async function renderTrainWeekAs(userId: string, day: string): Promise<string> {
   return html;
 }
 
-describe.skipIf(!hasDb)("TrainPage: FuellingCard binds to the open day", () => {
+describe.skipIf(!hasDb)("TrainPage: fuelling binds to the open day", () => {
   beforeAll(async () => {
     await seedOpenWeek(
       TODAY_HAS_SESSION_USER,
@@ -201,14 +201,31 @@ describe.skipIf(!hasDb)("TrainPage: FuellingCard binds to the open day", () => {
     // detail this test is about.
     const dialogIdx = html.indexOf('role="dialog"');
     expect(dialogIdx).toBeGreaterThan(-1);
+
+    // I2, final whole-branch review: BOTH regions, because slice 1 split
+    // the one card this file was written to guard into two bindings, and
+    // asserting only the sheet's left the on-page one uncovered. Reverting
+    // page.tsx's `<FuellingLine workouts={openDaySlot.workouts}>` to
+    // today's slot — the exact defect this file exists to pin, only now one
+    // component further down — passed every assertion below the dialog.
+    // The on-page region first.
+    const onPage = html.slice(0, dialogIdx);
+    // FuellingLine renders `fuellingSummary`'s single string, so the
+    // before-figure is one text node rather than SSR-split: 50-70 g is the
+    // open day's 240-minute long ride, 20-30 g is today's 45-minute
+    // recovery spin. Different duration bands, so the two never collide.
+    expect(onPage).toContain("50-70 g carbs before");
+    expect(onPage).not.toContain("20-30 g carbs before");
+
+    // Then the sheet. The open day's session (Saturday's 240-minute long
+    // ride) is what's shown — a wrong numeric fuelling claim attached to
+    // the wrong session is exactly the failure this pins. React SSR splits
+    // `{type} · {mins} min` across text/comment nodes, so these check the
+    // type name and the bare duration number rather than a literal "240
+    // min" substring. FuellingDetail itself never renders the date (only
+    // type/duration), so there is no OPEN_DAY/TODAY string to check for
+    // inside the sheet body.
     const section = html.slice(dialogIdx, dialogIdx + 1500);
-    // The open day's session (Saturday's 240-minute long ride) is what's
-    // shown — a wrong numeric fuelling claim attached to the wrong session
-    // is exactly the failure this pins. React SSR splits `{type} · {mins}
-    // min` across text/comment nodes, so these check the type name and the
-    // bare duration number rather than a literal "240 min" substring.
-    // FuellingDetail itself never renders the date (only type/duration), so
-    // there is no OPEN_DAY/TODAY string to check for inside the sheet body.
     expect(section).toContain("Long");
     expect(section).toContain("240");
     expect(section).not.toContain("Recovery");
@@ -221,6 +238,14 @@ describe.skipIf(!hasDb)("TrainPage: FuellingCard binds to the open day", () => {
     const html = await renderTrainWeekAs(TODAY_IS_REST_USER, OPEN_DAY);
     const dialogIdx = html.indexOf('role="dialog"');
     expect(dialogIdx).toBeGreaterThan(-1);
+
+    // The on-page line, again — and here it is the STRONGER of the two
+    // halves: rebinding FuellingLine to today makes it render nothing at
+    // all on this fixture, so a `.not.toContain` alone would still pass.
+    // Asserting the figure is PRESENT is what catches that.
+    const onPage = html.slice(0, dialogIdx);
+    expect(onPage).toContain("50-70 g carbs before");
+
     const section = html.slice(dialogIdx, dialogIdx + 1500);
     expect(section).toContain("Long");
     expect(section).toContain("240");
