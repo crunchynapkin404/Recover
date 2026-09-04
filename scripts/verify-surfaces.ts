@@ -400,6 +400,26 @@ const SURFACES: Record<string, string> = {
   // Changed to `denied` below, which is a real key in all three maps.
   "settings-connect-errors":
     "/settings?strava_error=denied&whoop_error=denied&withings_error=denied",
+  // The SAME page on an account that has connected nothing — captured by the
+  // dataless-owner job, not this one. Every fixture the other three jobs use
+  // has all six connectors CONNECTED (seed-demo.ts connects them precisely so
+  // the rest of Settings has something to render), so the disconnected half of
+  // every connector card has never been photographed or axe-audited: the
+  // Connect control, and the mechanism sentence v0.124.0 put under it.
+  //
+  // ConnectorCard takes `mechanism` only while a card is connectable AND not
+  // yet connected (see its prop doc in connector-card.tsx), which makes that
+  // sentence the guard's marker as well as the reason for the surface.
+  //
+  // It needs the dataless owner AND dummy client IDs. The three redirect cards
+  // gate `mechanism` on `configured` — STRAVA_CLIENT_ID and friends, present
+  // server-side — so without them this captures three "Set STRAVA_CLIENT_ID"
+  // badges instead. That is also a real state, but it is a misconfigured
+  // instance rather than the one a self-hoster meets before their first
+  // connect, and it is the simpler markup of the two. See surfaces.yml's
+  // capture-first-run job for the env, and for why fake values are sound:
+  // `configured` is a presence check, and no capture ever follows a redirect.
+  "settings-disconnected": "/settings",
   admin: "/admin",
   import: "/import",
   // activity-log is the manual-entry form, not the detail page an athlete
@@ -584,6 +604,56 @@ async function expandSettingsSections(page: Page): Promise<void> {
     .getByRole("button", { name: "Export" })
     .first()
     .waitFor({ state: "visible", timeout: 10_000 });
+}
+
+/**
+ * The connector cards that render through the ConnectorCard shell, and so can
+ * show a mechanism sentence: Strava, Whoop, Withings, Oura, Apple Health.
+ * intervals.icu is the sixth connector and is deliberately not on the shell —
+ * it still renders the older <Card> and names its own mechanism in its
+ * description (connector-card.tsx's ConnectorMechanism doc says why).
+ */
+const CONNECTABLE_CARDS = 5;
+
+/**
+ * `settings-disconnected` — Settings on an account that has connected nothing.
+ *
+ * Opens the sections like the other two settings surfaces, then refuses unless
+ * every connectable card is actually showing its mechanism sentence. Both
+ * halves of that matter and they fail differently:
+ *
+ *   - a CONNECTED account renders no sentence at all, because ConnectorCard
+ *     takes `mechanism` only while a card is not yet connected. That means the
+ *     dataless owner picked up a connection and this job's fixture is gone.
+ *   - an UNCONFIGURED instance renders a "Set X_CLIENT_ID" badge instead, for
+ *     the three redirect cards only, so the count comes back 2 rather than 0.
+ *     That means the job lost the dummy client IDs in surfaces.yml.
+ *
+ * Counting rather than merely waiting is what separates those two, and a bare
+ * `waitFor` would pass on the second: Oura and Apple Health do not gate on a
+ * client id, so two sentences are visible even with the env stripped. Either
+ * way the PNG would land under a name promising the disconnected-and-
+ * connectable state — the assertOnSurface trap, which is why every guard in
+ * this file refuses instead of capturing something close enough.
+ */
+async function expandSettingsDisconnected(page: Page): Promise<void> {
+  await expandSettingsSections(page);
+  const notes = page.locator('p[id^="connector-"][id$="-mechanism"]');
+  const count = await notes.count();
+  if (count !== CONNECTABLE_CARDS) {
+    throw new Error(
+      `settings-disconnected: ${count} visible connector mechanism notes, ` +
+        `expected ${CONNECTABLE_CARDS}. At 0, this account is no longer ` +
+        "dataless — a connection landed on it, and ConnectorCard drops " +
+        "`mechanism` the moment a card is connected; see " +
+        "scripts/seed-fresh-owner.ts. At 2, the three redirect cards are " +
+        "unconfigured and rendering their Set-X_CLIENT_ID badge instead — " +
+        "restore the dummy STRAVA/WHOOP/WITHINGS client ids on the " +
+        "capture-first-run job in .github/workflows/surfaces.yml. Capturing " +
+        "anyway would file one of those two under a name promising a " +
+        "connectable, not-yet-connected instance."
+    );
+  }
 }
 
 /**
@@ -967,6 +1037,7 @@ const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
   "first-run-coach": firstRunGuard("first-run-coach", "/coach"),
   "settings-expanded": expandSettingsSections,
   "settings-connect-errors": expandSettingsSections,
+  "settings-disconnected": expandSettingsDisconnected,
   "debrief-sheet": sheetOpenGuard(
     "debrief-sheet",
     "?sheet=debrief&activity=<id>"

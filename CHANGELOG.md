@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.137.0 — 2026-09-04 — Nothing connected
+
+### What you will notice
+
+**On a fresh instance, the AI Coach's "API Key" label now points at its own
+box.** It pointed at the intervals.icu key field, two sections up: clicking the
+label jumped you into Integrations, and a screen reader announced the wrong
+name for the field you were actually in. It only ever misbehaved while
+intervals.icu was disconnected, which is to say on exactly the instance that
+had connected nothing yet — a new self-hoster's first visit to Settings.
+
+### Under the hood
+
+**Settings is now photographed with nothing connected.** Every capture fixture
+this project has ever had connects all six providers on purpose, so the other
+half of every connector card — the Connect control, and the sentence added in
+v0.124.0 saying whether connecting sends you to a third party or keeps you
+here — had never appeared in a screenshot or an axe audit. `settings-
+disconnected` captures it on the dataless owner, the account that already
+guarantees no connections by construction, so it costs no new job.
+
+**It found the label defect on its first run.** `intervals-card.tsx` and
+`llm-settings-card.tsx` both post a field named `apiKey` and both carried
+`id="apiKey"`; with intervals.icu disconnected the document held two, and
+`htmlFor` resolves to the first in document order. axe reports it as
+`duplicate-id-aria` in the incomplete bucket, which this repo classifies as
+indeterminate and never gates the build — so the capture photographs it
+without failing. `settings-dup-id.test.tsx` is the guard that actually fails,
+and it was mutation-checked in both directions: restoring the bare id to one
+card fails the label assertion, restoring it to both fails the duplicate scan.
+
+**The surface is added AT the axe ceiling, not above it.** The stated risk was
+that unaudited markup would push `confirmedNodes` past the committed 0.
+Measured on the real page: 0 confirmed in all four theme/viewport
+combinations, before and after the fix, with the rule findings dropping 8 → 4
+as `duplicate-id-aria` disappeared.
+
+**`FIRST_RUN_SURFACES` is now `DATALESS_SURFACES`**, in both workflow files —
+a settings page is not a first-run state, and the list is named for the fixture
+it needs rather than the four surfaces that came first. The job also gets dummy
+`STRAVA`/`WHOOP`/`WITHINGS` client ids: those three cards show their mechanism
+sentence only when configured, so without them the capture would have
+photographed a misconfigured instance instead of a connectable one. The guard
+counts the sentences and refuses at either failure, naming which.
+
+**Three stale claims corrected.** Phase 7 said "no capture photographs the new
+line yet" for five releases after #241 made it photograph one. surfaces.yml's
+header said "THREE CAPTURE JOBS" over four, stale since the fourth was added.
+And the triathlon/multi-day pacing capture is now decided rather than open:
+declined, because it needs a fifth job for a state production has never been
+in, and both refusals already assert their message in `pacing.test.ts`.
+
+**Migrations: none.** No schema change, and nothing stored moves — the two
+renamed ids are DOM attributes, not the `name` fields the server actions read.
+
 ## v0.136.0 — 2026-09-03 — Pick your own ride
 
 ### What you will notice
