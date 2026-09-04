@@ -283,11 +283,31 @@ So density gets the honest treatment instead:
   integral**, because `--spacing` multiplies every utility and halving it
   would halve every padding in the app. Documented for what it is: a 4px base
   on which half-steps are permitted, an eleven-step 2px grid in practice.
-- **Three role tokens where the scatter is real**, and it is real for one
+- ~~**Three role tokens where the scatter is real**, and it is real for one
   role: card padding runs `p-6`×28, `p-4`×25, `p-5`×15, `p-3`×8, `p-8`×7 —
   five paddings for one job. `--pad-card`, `--pad-row` and `--gap-stack` are
   introduced and the Card primitive adopts them; the guard counts Card call
-  sites that override padding.
+  sites that override padding.~~
+  **NOT BUILT. Struck 2026-09-04, seven releases after the strand was marked
+  complete.** None of the three tokens exists: `grep -rn "pad-card\|pad-row\|
+gap-stack" src/ tests/` returns zero, `src/components/ui/card.tsx` still
+  uses shadcn's stock `--card-spacing`, and no test counts Card call sites
+  that override padding. The strand's own slice table below has no density
+  slice — Foundations, Motion, Loading, Primitives, Body flip, Surfaces,
+  Named offenders, Sweep — so nothing ever owned this bullet, and
+  `docs/plans/2026-08-30-polish-slice0-foundations.md` defers it to "the
+  density work", which is not one of them.
+  **Re-measured today, the scatter it targeted is wider, not narrower**:
+  `p-6`×29, `p-4`×25, `p-5`×15, `p-3`×10, `p-8`×8, and now `p-7`×2 — six
+  paddings for one job against the five this bullet was written for.
+  This is the failure mode this repo has recorded twice before (2b.4's slice
+  9, and the workout library closing at 46 against a spec that said 100+): a
+  strand ships under its own name, one deliverable silently does not, and the
+  roadmap marks it `[x] Complete`. The only prior trace was oblique —
+  `docs/design-system.md` and the visual-polish handoff both list "density per
+  role" as a convention that has never had a guard, which reads as a standing
+  state of the world rather than as a dropped deliverable. It is the latter,
+  and it is now written down as such.
 - **Typographic rhythm is judged, not counted.** Line-height and tracking get
   a review pass against captures in the final slice, and the spec says plainly
   that this part has no meter.

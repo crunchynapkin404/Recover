@@ -17,7 +17,7 @@ reason is in "Where Recover stands" below.
 > athlete's own, not population norms. When it does not know, it says so.
 
 The second clause is deliberately testable. Phase 2 made every exported
-engine constant carry a source and a confidence; 102 of 120 are still
+engine constant carry a source and a confidence; 113 of 132 are still
 `Confidence: Low`. Phase 7 exists to earn the raises the evidence supports —
 what the clause tests has changed, not whether it can be tested.
 
@@ -74,14 +74,30 @@ The migration, token and tool figures are asserted by
 almost every pull request, and a guard on it would fail work that is going
 well.
 
-**The remaining debt is epistemic, not functional.** 102 of 120 exported
-engine constants carry `Confidence: Low` (16 Medium, 2 High). And
+**The remaining debt is epistemic, not functional.** 113 of 132 exported
+engine constants carry `Confidence: Low` (17 Medium, 2 High) — `Confidence:`
+annotations in non-test files under `src/lib`, now pinned by
+`tests/roadmap-figures.test.ts` instead of re-counted by hand.
+**This pair said 102 of 120 from 2026-08-24 to 2026-09-04, and it moved for
+two separate reasons — both stated here rather than folded together.**
+First, real drift: re-running the ORIGINAL measurement today gives 117 of
+136, so eleven constants and one Medium arrived while the line reported the
+count static. The epistemic debt this sentence exists to track GREW, and the
+sentence said otherwise. Second, a corrected measurement: that original grep
+swept `src/lib` including test files, which contribute four `Confidence: Low`
+strings that are fixtures and assertions, not engine constants. Excluding
+them gives the 113 of 132 above. Quoting only the new number would have
+hidden the drift behind the correction, which is the move this file keeps
+warning about. And
 `races.resultActivityId` — how each race actually went — was stored, exposed
 over MCP, and round-tripped on import while nothing read it. Phase 7 exists
 because of that gap, not because of the numbers above. **The first read of it
 has landed** — pacing predicted against pacing held (`src/lib/race/pacing-result.ts`,
-`get_race_result_pacing`). The demand/feasibility half, the athlete-facing
-surface, and the calibration the whole phase is for are still open.
+`get_race_result_pacing`), and **the athlete-facing surface with it**, shipped
+v0.130.0 to the Races sheet and the debrief; this sentence listed it as open
+until 2026-09-04, disagreeing with its own `- [x]` in Phase 7 below. The
+demand/feasibility half and the calibration the whole phase is for are still
+open, and both are parked on data rather than on work.
 
 Board re-read 2026-08-24 with a structured scrape. **An earlier refresh the
 same day was wrong** — it read each card's vote count from the row above,
@@ -235,7 +251,11 @@ phase written as a checklist becomes a tweak list:
       The inventory's own recommendation shipped with it: **tab-level
       telemetry**, because the counter recorded nine route keys and none of
       the eleven second-level destinations the inventory calls unequal.
-      Seventeen keys now, no migration.
+      Sixteen keys now, no migration — nine surfaces, three Train tabs and
+      four Body tabs. It was seventeen when written, and v0.123.0's retirement
+      of the Season tab took one away in the same release this paragraph
+      already credits with retiring it; `telemetry.surfaces.test.ts` asserts
+      the length against the constants, so it can never catch the prose.
       **Two of the four questions are decided** (v0.121,
       `docs/2026-08-26-ia-decisions.md`), and they are the two counting could
       never have settled. "Menu" is now **Settings** — the label promised a
@@ -431,6 +451,24 @@ week`, `Plan setup`, `Races`, `Availability` and the 21-row draft
       fail for the first time since v0.99.
       Zero confirmed axe violations throughout; the ceiling has never been
       raised.
+      **ONE OF ITS FOUR NAMED SUBJECTS WAS NEVER BUILT, found 2026-09-04.**
+      This bullet's own first line lists "density" beside transitions, loading
+      states and typographic rhythm. Design 5 of the spec asked for three role
+      tokens — `--pad-card`, `--pad-row`, `--gap-stack` — with the Card
+      primitive adopting them and a guard counting call sites that override
+      padding. None of the three exists, no such guard exists, and the strand's
+      slice table never contained a density slice, so nothing ever owned it.
+      Re-measured today the scatter it targeted is WIDER than when the spec
+      described it: six card paddings for one job against five.
+      The spec now carries the struck bullet and the evidence. **This is the
+      third occurrence of the pattern this file already names twice** — a
+      strand closing under its own name while one stated deliverable silently
+      does not ship. The first two produced mechanical guards
+      (`LIBRARY_TARGET`, the roadmap-figures test); this one is recorded but
+      NOT yet guarded, because a density ratchet is the very deliverable that
+      went missing. Deciding whether to build it or to drop it deliberately is
+      open work, and it is listed under "Not scheduled" rather than quietly
+      left inside a bullet marked complete.
 
 - [x] **Pick your own ride.** The athlete asked for it in these words: "add
       access to the library to select a training on a day myself when not
@@ -586,11 +624,60 @@ Named so they are not rediscovered; unscheduled so they are not promises.
 - **ICS export** — the one genuine demand gap (123 votes). Cheap to do
   badly: timezones, recurrence, and a feed URL that is a bearer credential
   in a query string.
-- **MCP contract freeze** — after the numbers underneath are stable, not
-  before.
+- **MCP contract freeze** — ~~after the numbers underneath are stable, not
+  before.~~ **As written this was already done when it was written (noted
+  2026-09-04).** The WIRE contract has been frozen since v0.20 (2026-07-21):
+  `docs/API-STABILITY.md` says so, and `src/lib/tools/__tests__/frozen-tools.test.ts`
+  asserts the 60 tool names, scopes and JSON Schemas against a snapshot. This
+  bullet was added 2026-08-24, a month after that landed. What is genuinely
+  unfrozen is SEMANTIC: the numbers those 60 tools return still move as
+  constants earn confidence, which is Phase 7's business. Restated so the item
+  names the thing that is actually open.
+
+- **Density per role** — three tokens (`--pad-card`, `--pad-row`,
+  `--gap-stack`), the Card primitive adopting them, and a guard counting call
+  sites that override padding. Design 5 of the visual-polish spec, never built
+  and struck there 2026-09-04; see that strand's entry above. Card padding is
+  six values for one job. Unscheduled because the honest choice is between
+  building the ratchet and dropping the ambition on purpose, and that is a
+  judgement about how much uniformity this app wants, not a defect.
+
+- **The week card's totals line** — `5 sessions · 4.5h of 6.3h`, specified in
+  the week-surface redesign and never built; struck there 2026-09-04. Nothing
+  blocks it — `plannedMins`, `offeredMins` and the session count are already
+  computed on the page — but it was specified carrying an `ⓘ`, and there is
+  still no `ⓘ` anywhere in the app, so building it alone would ship half of a
+  design whose other half is the reason the week card still measures 1.84
+  screens against a predicted ~1.2.
 - **On-ramps for the three dormant-but-kept features** — Deep Biology,
   outbound webhooks, coach long-term memory.
 - **Fitbit / Google Health direct, and Cycle-Aware.**
+
+- **The PWA manifest's `theme_color` never followed `forcedTheme` out.**
+  Found 2026-09-04. `src/app/layout.tsx` carried a two-part instruction — make
+  `themeColor` per-theme in the slice that lifts `forcedTheme`, and update
+  `public/manifest.webmanifest` at the same time. v0.111.0 did the first; the
+  manifest has been touched exactly once in its life, by the commit that
+  created it, and still says `"theme_color": "#0a0a0a"`. An installed PWA on a
+  light-preference device therefore gets dark chrome over a light page. It is
+  unscheduled rather than fixed because a manifest holds ONE value while the
+  app defaults to `system`, so the choice is to pick a theme or to drop the
+  key — and layout.tsx's own note says no screenshot can check this: it needs
+  a real device in both OS appearances. A change nobody can verify is not one
+  to make blind.
+
+- **The Apple Health "TEMPORARY" ingest diagnostic, 112 releases old.**
+  `src/app/api/connections/apple-health/ingest/route.ts` logs every payload's
+  metric names on every push — up to once every 15 minutes — under a comment
+  saying to remove it once the vo2max / wrist-temp / BMI / lean-mass /
+  waist-circumference name guesses are confirmed against a real payload.
+  v0.25.15's notes said the same: "To be removed once confirmed." The guesses
+  are still marked unverified in their own spec, so the condition was never
+  met — but the mechanism for meeting it is reading production logs, which is
+  the one thing nobody has done in 112 releases. Unscheduled because the
+  honest options are to read the logs and settle the names, or to accept the
+  guesses and delete the diagnostic; leaving temporary code running forever is
+  the only option that is definitely wrong.
 - ~~**No capture photographs a disconnected connector.**~~ **Closed
   2026-09-04.** Found while shipping v0.122.0's mechanism note: every capture
   fixture — the development database, the soak stack's seed — had all six
