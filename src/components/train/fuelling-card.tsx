@@ -20,12 +20,10 @@ function confidenceTone(confidence: "high" | "medium" | "low"): string {
  * compete" note for why a single number can't stand in for two.
  */
 export function FuellingLine({
-  date,
   workouts,
   bodyMassKg,
   href,
 }: {
-  date: string;
   workouts: ScheduledWorkout[];
   bodyMassKg: number | null;
   href: string;
@@ -46,11 +44,9 @@ export function FuellingLine({
  * that used to sit inside FuellingCard's <section>.
  */
 export function FuellingDetail({
-  date,
   workouts,
   bodyMassKg,
 }: {
-  date: string;
   workouts: ScheduledWorkout[];
   bodyMassKg: number | null;
 }) {

@@ -46,7 +46,6 @@ describe("FuellingLine", () => {
   it("renders one line and a disclosure link, not the detail", () => {
     const html = renderToString(
       <FuellingLine
-        date="2026-09-04"
         workouts={[ride(90)]}
         bodyMassKg={70}
         href="/train?sheet=fuelling&day=2026-09-04"
@@ -63,14 +62,7 @@ describe("FuellingLine", () => {
 
   it("renders nothing on a day with no session", () => {
     expect(
-      renderToString(
-        <FuellingLine
-          date="2026-09-04"
-          workouts={[]}
-          bodyMassKg={70}
-          href="/x"
-        />
-      )
+      renderToString(<FuellingLine workouts={[]} bodyMassKg={70} href="/x" />)
     ).toBe("");
   });
 });
@@ -78,7 +70,7 @@ describe("FuellingLine", () => {
 describe("FuellingDetail", () => {
   it("still carries the full guidance the card used to show", () => {
     const html = renderToString(
-      <FuellingDetail date="2026-09-04" workouts={[ride(90)]} bodyMassKg={70} />
+      <FuellingDetail workouts={[ride(90)]} bodyMassKg={70} />
     );
     for (const label of ["Before:", "During:", "After:"]) {
       expect(html).toContain(label);
@@ -88,11 +80,7 @@ describe("FuellingDetail", () => {
 
   it("renders assumptions when anchors are missing", () => {
     const html = renderToString(
-      <FuellingDetail
-        date="2026-08-08"
-        workouts={[noAnchorRun]}
-        bodyMassKg={null}
-      />
+      <FuellingDetail workouts={[noAnchorRun]} bodyMassKg={null} />
     );
 
     expect(html).toContain("Assumptions:");
@@ -107,7 +95,7 @@ describe("FuellingDetail", () => {
   // and its surrounding body copy back on the same ink token.
   it("keeps the Before/During/After labels a shade brighter than their body copy", () => {
     const html = renderToString(
-      <FuellingDetail date="2026-08-08" workouts={[ride(90)]} bodyMassKg={72} />
+      <FuellingDetail workouts={[ride(90)]} bodyMassKg={72} />
     );
     const bodyWrapper = /<div class="[^"]*">\s*<p>\s*<span[^>]*>Before:/.exec(
       html
@@ -123,7 +111,7 @@ describe("FuellingDetail", () => {
 
   it("uses the token scale, not ad-hoc sizes or white alphas", () => {
     const html = renderToString(
-      <FuellingDetail date="2026-08-08" workouts={[ride(90)]} bodyMassKg={72} />
+      <FuellingDetail workouts={[ride(90)]} bodyMassKg={72} />
     );
     expect(html).not.toMatch(/text-\[[\d.]+px\]/);
     expect(html).not.toMatch(/\btext-(xs|sm)\b/);

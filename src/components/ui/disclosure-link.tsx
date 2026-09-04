@@ -35,7 +35,7 @@ export function DisclosureLink({
     <Link
       href={href}
       data-slot="disclosure-link"
-      className="inline-flex shrink-0 items-center rounded-full p-1 text-ink-muted transition-colors hover:text-ink-primary focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="inline-flex shrink-0 items-center rounded-full p-1 text-ink-muted transition-colors outline-none hover:text-ink-primary focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <Info aria-hidden className="size-4" />
       <span className="sr-only">{label}</span>
