@@ -71,6 +71,85 @@ describe("ROADMAP's countable claims", () => {
     expect(Number(live![1])).toBe(LIBRARY.length);
   });
 
+  /**
+   * The pair the GOAL SENTENCE rests on, and the one figure here that had
+   * drifted in the direction nobody wants.
+   *
+   * "102 of 120 … (16 Medium, 2 High)" was written on 2026-08-24 and was
+   * still there on 2026-09-04, by which point the truth was 117 of 136 with
+   * 17 Medium. Sixteen constants and one Medium had arrived in the window, so
+   * the epistemic debt the roadmap reports had GROWN while the roadmap
+   * reported it unchanged — on the clause the whole file calls "deliberately
+   * testable".
+   *
+   * THE MEASUREMENT IS THE GREP, DELIBERATELY. A stricter parse — a JSDoc
+   * block carrying `Confidence:` immediately above an `export const` — gives
+   * 101, and is arguably closer to what the prose says. It is not used here:
+   * the historical figure was produced by this grep (verified by re-running
+   * it at 8151e48a, the commit that wrote the number, where it returns
+   * exactly 102/16/2), so counting a different way would silently redefine
+   * the claim while appearing to correct it. That substitution — a narrower
+   * true metric quietly replacing the stated one — is the failure this repo
+   * has recorded three times. Change the measurement only by changing the
+   * sentence too.
+   */
+  it("states the real spread of confidence labels", () => {
+    const levels = ["Low", "Medium", "High"] as const;
+    const counts = Object.fromEntries(levels.map((l) => [l, 0])) as Record<
+      (typeof levels)[number],
+      number
+    >;
+
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith(".ts") && !entry.name.includes(".test.")) {
+          const src = readFileSync(full, "utf8");
+          for (const level of levels) {
+            counts[level] += (
+              src.match(new RegExp(`Confidence: ${level}`, "g")) ?? []
+            ).length;
+          }
+        }
+      }
+    };
+    walk(join(process.cwd(), "src/lib"));
+
+    const total = counts.Low + counts.Medium + counts.High;
+    expect(
+      claimed(/(\d+) of \d+ are still\n`Confidence: Low`/, "a Low count")
+    ).toBe(counts.Low);
+    expect(
+      claimed(/\d+ of (\d+) are still\n`Confidence: Low`/, "a total")
+    ).toBe(total);
+    expect(
+      claimed(/carry `Confidence: Low` \((\d+) Medium/, "a Medium count")
+    ).toBe(counts.Medium);
+    expect(
+      claimed(
+        /carry `Confidence: Low` \(\d+ Medium, (\d+) High\)/,
+        "a High count"
+      )
+    ).toBe(counts.High);
+
+    // The pair is stated TWICE — once in the goal section, once in "Where
+    // Recover stands" — and the assertions above read the Low/total from the
+    // first and the Medium/High from the second. Pin the second's Low/total
+    // too, or the two sentences can drift apart from each other while every
+    // assertion above still passes. Found by mutating this very test: raising
+    // only the second line's Low went undetected.
+    expect(
+      claimed(
+        /(\d+) of \d+ exported\nengine constants carry/,
+        "a second Low count"
+      )
+    ).toBe(counts.Low);
+    expect(
+      claimed(/\d+ of (\d+) exported\nengine constants carry/, "a second total")
+    ).toBe(total);
+  });
+
   it("states the real size of the design system, both ways", () => {
     // Two different true numbers, and quoting one without the other is how
     // "83" survived: unique token NAMES, and total DECLARATIONS across the

@@ -38,13 +38,13 @@ describe("Remaining skeleton table", () => {
     expect(tables).toHaveLength(1);
   });
 
-  // This is the only assertion that holds the WHOLE 1,537-line page.tsx to
-  // the 12px floor, so it is written now even though it can't pass yet:
-  // Task 6 migrates only the Week tab's page-level chrome — the History
-  // (Task 9) and Fitness (Task 11) halves of this same file still have
-  // unmigrated text-[Npx]/white-alpha classes. Marked `it.fails` here so
-  // the suite is never red between commits; Task 11 flips it to a plain
-  // `it` once the Fitness migration leaves the whole file clean.
+  // This is the only assertion that holds the WHOLE of page.tsx to the 12px
+  // floor. It was written as `it.fails` because it could not pass yet — Task 6
+  // migrated only the Week tab's chrome, leaving the History and Fitness
+  // halves unmigrated — and Task 11 flipped it once Fitness was clean.
+  // THAT FLIP HAPPENED: this is a plain `it(` and it passes. Corrected
+  // 2026-09-04, when the paragraph still said "it can't pass yet" and named
+  // an `it.fails` that no longer exists anywhere in the repo.
   //
   // I6, whole-branch review 2026-08-12: this used to re-spell its own,
   // narrower copies of the two offender patterns

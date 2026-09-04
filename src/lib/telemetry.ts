@@ -34,8 +34,9 @@ export const RETIRED_SURFACE_KEYS = ["train:season"] as const;
 /**
  * The tabs each tabbed surface may report, keyed by surface.
  *
- * Two of the nine surfaces above are not one screen. Train is four tabs
- * behind `/train` and Body is four behind `/body`, and until v0.121 the
+ * Two of the nine surfaces above are not one screen. Train is three tabs
+ * behind `/train` (four until v0.123.0 retired Season) and Body is four
+ * behind `/body`, and until v0.121 the
  * counter could not tell them apart: `recordSurfaceView(id, "body")` fired
  * identically whether the athlete opened Trends or Labs. Phase 6's IA
  * inventory (docs/2026-08-26-ia-inventory.md) measured those eight tabs at

@@ -82,11 +82,15 @@ export function extractThemeBlocks(css: string): ThemeBlock[] {
 
 /**
  * The themes the athlete's app can actually render, read from the provider
- * that decides it rather than from a comment. `forcedTheme="dark"` means the
- * light palette ships but is unreachable outside the screenshot script (see
- * src/components/theme-provider.tsx), so a hardcoded dark-only colour cannot
- * yet be seen failing in light — and a guard that failed it today would be
- * failing on a theme no athlete can open.
+ * that decides it rather than from a comment.
+ *
+ * BOTH THEMES ARE REACHABLE. `forcedTheme` was lifted in v0.111.0 and the
+ * athlete chooses light, dark or system, so a hardcoded dark-only colour CAN
+ * now be seen failing in light. Until 2026-09-04 this comment still said
+ * `forcedTheme="dark"` means "the light palette ships but is unreachable
+ * outside the screenshot script", which theme-provider.tsx has contradicted
+ * in bold since v0.111.0. The function below never depended on that being
+ * true — it reads the provider — so only the prose was wrong.
  *
  * FAILS CLOSED, DELIBERATELY: anything other than a literal `forcedTheme` of
  * a known theme name — the attribute removed at slice 9, or made dynamic —

@@ -115,8 +115,13 @@ function offenders(pattern: RegExp): string[] {
 }
 
 /* ── THE RATCHET (I5, whole-branch review 2026-08-11) ───────────────────────
- * The two `it.fails` assertions below are deliberate and stay — the offenders
- * cannot be gone until the last surface migrates. But `it.fails` passes on
+ * HISTORICAL. The two assertions below were `it.fails` while the migration
+ * ran; both are plain `it(` now, and `it.fails` appears nowhere in src/,
+ * scripts/ or tests/ — the roadmap records the last one going in the
+ * visual-polish strand. The reasoning is kept because it is why the ratchet
+ * beside them exists; only the present tense was wrong. Corrected 2026-09-04.
+ * As written until then: "The two `it.fails` assertions below are deliberate
+ * and stay — the offenders cannot be gone until the last surface migrates." But `it.fails` passes on
  * ANY failure, and `[…395 offenders]` fails a `toEqual([])` exactly as well
  * as `[…600 offenders]` does. So between slice 0 and slice 9 an implementer
  * could ADD arbitrary type sizes and ad-hoc ink alphas freely — for eight
@@ -1356,9 +1361,10 @@ describe("type-scale guard", () => {
     expect(files.length).toBeGreaterThan(100);
   });
 
-  // TODO(slice-9): flip to `it(` once the last surface is migrated. Tracked
-  // in docs/plans/2026-08-11-v099-slice0-foundations.md. Do NOT delete these
-  // — a skipped guard that is deleted is a guard that never lands.
+  // DONE, and this marker outlived it. The flip it asks for has happened —
+  // the assertion below is a plain `it(` and passes — so the instruction now
+  // reads as work outstanding when the work is finished, and "do NOT delete
+  // these" guards a construct that no longer exists. Corrected 2026-09-04.
   //
   // This one is paired with a real ratcheted assertion below (I5). On its own
   // it is satisfied by ANY non-empty offender list, so it cannot tell 395
@@ -1404,9 +1410,10 @@ describe("type-scale guard", () => {
     ).toEqual(RELATIVE_TYPE_INVENTORY);
   });
 
-  // TODO(slice-9): flip to `it(` once the last surface is migrated. Tracked
-  // in docs/plans/2026-08-11-v099-slice0-foundations.md. Do NOT delete these
-  // — a skipped guard that is deleted is a guard that never lands.
+  // DONE, and this marker outlived it. The flip it asks for has happened —
+  // the assertion below is a plain `it(` and passes — so the instruction now
+  // reads as work outstanding when the work is finished, and "do NOT delete
+  // these" guards a construct that no longer exists. Corrected 2026-09-04.
   //
   // Same pairing as above: the it.fails proves the goal is not met yet, the
   // ratchet below is the only thing that notices the count moving the wrong

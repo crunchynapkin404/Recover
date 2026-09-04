@@ -11,6 +11,7 @@ const BARE_USER = "test-first-run-bare-user";
 const CONNECTED_USER = "test-first-run-connected-user";
 const LOGGED_USER = "test-first-run-logged-user";
 const RETURNING_USER = "test-first-run-returning-user";
+const REVOKED_USER = "test-first-run-revoked-user";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -43,6 +44,11 @@ describe.skipIf(!hasDb)("isFirstRun", () => {
           name: "Test First Run Returning User",
           email: `${RETURNING_USER}@example.invalid`,
         },
+        {
+          id: REVOKED_USER,
+          name: "Test First Run Revoked User",
+          email: `${REVOKED_USER}@example.invalid`,
+        },
       ])
       .onConflictDoNothing();
 
@@ -52,6 +58,18 @@ describe.skipIf(!hasDb)("isFirstRun", () => {
       encryptedAccessToken: "test-encrypted-token",
       externalAthleteId: "test-first-run-external-athlete",
       status: "active",
+    });
+
+    // A connection that EXISTS but is not active. isFirstRun filters on
+    // `status = "active"`, and nothing pinned that until 2026-09-04 — the
+    // case below was named "is false once ANY connection exists", which is
+    // not what the predicate does.
+    await db.insert(schema.connections).values({
+      userId: REVOKED_USER,
+      provider: "strava",
+      encryptedAccessToken: "test-encrypted-token",
+      externalAthleteId: "test-first-run-revoked-athlete",
+      status: "revoked",
     });
 
     await db.insert(schema.wellnessDaily).values({
@@ -70,6 +88,9 @@ describe.skipIf(!hasDb)("isFirstRun", () => {
       .delete(schema.connections)
       .where(eq(schema.connections.userId, CONNECTED_USER));
     await db
+      .delete(schema.connections)
+      .where(eq(schema.connections.userId, REVOKED_USER));
+    await db
       .delete(schema.wellnessDaily)
       .where(eq(schema.wellnessDaily.userId, LOGGED_USER));
     await db
@@ -79,14 +100,27 @@ describe.skipIf(!hasDb)("isFirstRun", () => {
     await db.delete(schema.users).where(eq(schema.users.id, CONNECTED_USER));
     await db.delete(schema.users).where(eq(schema.users.id, LOGGED_USER));
     await db.delete(schema.users).where(eq(schema.users.id, RETURNING_USER));
+    await db.delete(schema.users).where(eq(schema.users.id, REVOKED_USER));
   });
 
   it("is true for an owner with no connection and no wellness", async () => {
     expect(await isFirstRun(BARE_USER)).toBe(true);
   });
 
-  it("is false once any connection exists, even with no wellness", async () => {
+  it("is false once an ACTIVE connection exists, even with no wellness", async () => {
     expect(await isFirstRun(CONNECTED_USER)).toBe(false);
+  });
+
+  it("stays true for a connection that is not active", async () => {
+    // The predicate filters `status = "active"`; the case above was named
+    // "once ANY connection exists" and would have passed just as happily if
+    // it did not. A revoked or errored connector must leave the athlete in
+    // the first-run state — they have connected nothing that works, which is
+    // the same position as never having connected at all. This is also what
+    // `settings-disconnected` (scripts/verify-surfaces.ts) depends on: its
+    // owner is dataless by construction, and a connector that errors must not
+    // quietly take it out of that state.
+    expect(await isFirstRun(REVOKED_USER)).toBe(true);
   });
 
   it("is false once any wellness row exists, even with no connection", async () => {

@@ -176,7 +176,21 @@ One card, two tenses, `This week | Next week`. Contains, in order:
   either way.
 
 - **The availability chip**, opening the timeline sheet.
-- **The totals line** — `5 sessions · 4.5h of 6.3h` with `ⓘ`.
+- ~~**The totals line** — `5 sessions · 4.5h of 6.3h` with `ⓘ`.~~
+  **NOT BUILT. Struck 2026-09-04**, fourteen releases after v0.123.0 shipped
+  this spec's other destinations. The week card renders verdict →
+  `SeasonProgress` → draft banner → `WeekStrip` → `WeekDayList` →
+  `FuellingCard` → summary rows → `PinnedAction`, and none of them is a
+  session-count-and-hours line: `availabilityBadge` shows OFFERED hours only,
+  and planned-versus-target lives in `WeekRationale`, inside the `why-week`
+  sheet. `next-week-summary.tsx` renders the shape this bullet describes, but
+  for NEXT week.
+  **Nothing blocks it** — `plannedMins(week.days)`, `offeredMins` and the
+  session count are all already computed on the page. It went unbuilt with the
+  `ⓘ` it was specified to carry, and it was never disclosed: it appears in no
+  handoff's "What you are inheriting", and not in the roadmap. Unlike the `ⓘ`
+  itself, which the roadmap has tracked honestly all along ("There is no `ⓘ`
+  anywhere in the app yet"), this line simply vanished from the record.
 - **The open day.** One day expanded, defaulting to today: title, zones,
   fuelling line with its own `ⓘ`, and the existing day actions (`Move`,
   `Target day`, `What if?`, `No time today`). Tapping another bar opens that
@@ -199,6 +213,16 @@ Each replaces a `Collapsible` with a link:
 **Sheets for what you return from, routes for what you browse** — the split
 JOIN uses. `RacesSection` is a 743-line management surface with its own
 add/edit/delete lifecycle; it is browsed, so it gets a route.
+
+**SHIPPED AS A SHEET, NOT A ROUTE. Recorded 2026-09-04.** The destination is
+`?sheet=races`; neither `src/app/train/races/` nor `src/app/races/` exists.
+The capability is there and the deviation may well be the better call — but it
+overrode this section's own stated rule, and it was recorded nowhere: not in
+`train/page.tsx`'s comment explaining the sheet, and not in the roadmap, which
+lists all five destinations as `?sheet=` rows without noting that one of them
+was specified as a route. A deviation nobody wrote down is indistinguishable
+from a deliverable nobody built, which is why this note exists even though the
+outcome is probably right.
 
 ### 5. The draft plan preview
 
