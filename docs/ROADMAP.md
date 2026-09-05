@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v0.138.0**. History through v0.119 is preserved in
+Current release: **v0.139.0**. History through v0.119 is preserved in
 [`docs/archive/ROADMAP-through-v0.119.md`](archive/ROADMAP-through-v0.119.md) —
 Phases 1–4, all complete. It is a record, not a plan.
 
