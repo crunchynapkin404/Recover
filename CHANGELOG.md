@@ -10,6 +10,12 @@ RPE 1-10, Feel, the note, Save, Skip and even the close scrim were all dead,
 and the only way out was Escape or the back button. It has been that way since
 v0.125.0. The sheet is a normal, working sheet again.
 
+**And the bottom tab bar was drawn over that sheet, covering Save.** The same
+misplacement put the panel inside the background subtree, so it lost its
+stacking context against `BottomNav`: Today / Train / Coach / Body / Settings
+sat across the bottom of the sheet where "Save & get review" and "Skip"
+belong. Both controls are back where they should be.
+
 **A second ride the same day is no longer thrown away.** Recover shows one
 debrief at a time and queues the rest, and the queue leaked: with two rides in
 a day the second one usually never got a card at all — no prompt, no coach
@@ -41,6 +47,14 @@ been dead for a pending debrief for fourteen releases, and no test, axe run or
 capture could see it: jsdom implements neither `inert`'s focus-blocking nor
 its pointer-blocking, and a photograph of an inert sheet is a photograph of a
 sheet.
+
+**Both symptoms were confirmed in a real browser before and after, because
+jsdom cannot see either one.** Against the pre-fix code Playwright itself
+could not click the RPE control — `locator.click` timed out, which is what
+"can't select anything" is from the outside — and the screenshot shows the tab
+bar over the sheet's own buttons. After: both taps register, `aria-pressed`
+flips, and the actions are visible. This is the check the test suite
+structurally cannot perform.
 
 Fixed at the call site — the sheet moved to `overlay`, which meant splitting
 `ActivityDebriefSection` in two, because the prompt and the resolved review
