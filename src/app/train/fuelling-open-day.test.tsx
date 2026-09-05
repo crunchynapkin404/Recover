@@ -39,18 +39,24 @@ function localYmd(d: Date): string {
 
 const TODAY = localYmd(new Date());
 const WEEK_START = mondayOf(new Date());
-// A day in this week that is not today, for the "open day" — Saturday of
-// the week TODAY falls in. When TODAY itself is a Saturday this would
-// collide, which the six-day offset from Monday can never do (TODAY is
-// always within [WEEK_START, WEEK_START+6], and WEEK_START+5 equals TODAY
-// only if TODAY is that same Saturday — guarded by the assertion below so
-// a future run on an actual Saturday fails loudly instead of silently
-// testing OPEN_DAY against itself).
-const OPEN_DAY = addDaysYmd(WEEK_START, 5);
+// A day in this week that is not today, for the "open day" — Saturday of the
+// week TODAY falls in, or Sunday when TODAY *is* that Saturday.
+//
+// It used to be Saturday unconditionally, with a throw when the two
+// collided. Failing loudly beat testing OPEN_DAY against itself, but it also
+// meant this file could not pass on a Saturday at all — and `ci.yml` is a
+// release gate, so one day in seven nothing could ship. That is what it did
+// on 2026-09-05, blocking v0.139.0. The fixture only ever needed "a day in
+// this week that is not today", and it can choose one rather than demand the
+// calendar cooperate. Sunday, not Friday: it keeps the open day in the
+// FUTURE, which is the shape the long ride is written for.
+const OPEN_DAY_OFFSET = addDaysYmd(WEEK_START, 5) === TODAY ? 6 : 5;
+const OPEN_DAY = addDaysYmd(WEEK_START, OPEN_DAY_OFFSET);
+// TODAY is always within [WEEK_START, WEEK_START+6] and the offset above is
+// chosen against it, so this cannot fire — it stays as the guard that the
+// choice above keeps its promise.
 if (OPEN_DAY === TODAY) {
-  throw new Error(
-    "fixture collision: OPEN_DAY equals TODAY — rerun on a non-Saturday"
-  );
+  throw new Error("fixture collision: OPEN_DAY equals TODAY");
 }
 
 const recoverySpin = withPurpose({
@@ -64,7 +70,7 @@ const recoverySpin = withPurpose({
 });
 
 const longRide = withPurpose({
-  day: 5,
+  day: OPEN_DAY_OFFSET,
   sport: "Ride",
   type: "Long",
   durationMins: 240,

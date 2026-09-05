@@ -435,6 +435,7 @@ export async function importUserData(
         feel: r.feel,
         debriefNotes: r.debriefNotes,
         debriefState: r.debriefState,
+        debriefPendingAt: toDateOrNull(r.debriefPendingAt),
         debriefThreadId: r.debriefThreadId
           ? (threadIdMap.get(r.debriefThreadId) ?? null)
           : null,

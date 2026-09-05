@@ -348,6 +348,7 @@ async function seed() {
     feel: "strong",
     debriefNotes: "Drill debrief notes",
     debriefState: "answered",
+    debriefPendingAt: new Date("2026-01-02T09:30:00Z"),
     debriefThreadId: thread.id,
     reviewedAt: new Date("2026-01-02T10:00:00Z"),
     reviewAttempts: 2,

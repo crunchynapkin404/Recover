@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v0.138.0**. History through v0.119 is preserved in
+Current release: **v0.139.0**. History through v0.119 is preserved in
 [`docs/archive/ROADMAP-through-v0.119.md`](archive/ROADMAP-through-v0.119.md) —
 Phases 1–4, all complete. It is a record, not a plan.
 
@@ -65,7 +65,7 @@ around future races), six wellness/activity sources (intervals.icu, Strava,
 Whoop, Oura, Apple Health, Withings), training history, multiple time blocks
 per day, running, and strength (v0.119.0).
 
-**Mechanically sound.** 3536 tests at v0.133.0, 48 migrations, zero confirmed
+**Mechanically sound.** 3692 tests at v0.139.0, 49 migrations, zero confirmed
 axe violations across the app, a 197-token design system across 283
 declarations in two themes (`docs/design-system.md`), a 60-tool MCP surface,
 and a release path that is fully automated end to end (`docs/RELEASING.md`).

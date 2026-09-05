@@ -308,6 +308,7 @@ export async function exportUserData(
       feel: a.feel,
       debriefNotes: a.debriefNotes,
       debriefState: a.debriefState,
+      debriefPendingAt: a.debriefPendingAt,
       debriefThreadId: a.debriefThreadId,
       // The athlete's own answer to "was this your planned session?" — a
       // fact only they can supply, so a GDPR export that dropped it would

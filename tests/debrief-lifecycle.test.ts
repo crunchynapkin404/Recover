@@ -46,6 +46,12 @@ async function makeActivity(over: Record<string, unknown> = {}) {
       provider: "intervals_icu",
       externalId: `dl-${Math.random().toString(36).slice(2)}`,
       startDate: new Date(NOW.getTime() - 2 * 3_600_000),
+      // Ingested when it happened, like a real webhook or poll. Left to the
+      // column default it would carry the REAL clock against a `NOW` fixed in
+      // the past, which is the shape of a historical import — debrief
+      // freshness is measured from ingestion (see debriefEligible), so the
+      // fixture has to say when the row landed.
+      createdAt: NOW,
       sport: "Ride",
       name: "Lifecycle ride",
       durationS: 3600,

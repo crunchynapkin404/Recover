@@ -96,7 +96,17 @@ export function BottomSheet({
     // whether a modal is visible, and inferring it killed two pages in two
     // commits — an always-truthy `<SheetHost/>` on Today, and Coach's
     // `lg:hidden` history panel on desktop.
-    const background = document.querySelector("[data-app-background]");
+    // ...unless this panel is INSIDE it. `inert` applies to the whole
+    // subtree, so a sheet rendered through AppShell's children rather than
+    // its `overlay` slot would suppress its own controls — which is what
+    // `/activity/[id]` did to the post-ride debrief: RPE, feel, note, Save,
+    // Skip and the close scrim all dead, the sheet unclosable. The call site
+    // is the real fix (the panel belongs in `overlay`, a sibling), but a
+    // modal must never be the thing that disables itself, so the check lives
+    // here too — a background left focusable behind a working sheet is the
+    // far smaller fault.
+    const marked = document.querySelector("[data-app-background]");
+    const background = marked?.contains(panel) ? null : marked;
     background?.setAttribute("inert", "");
 
     return () => {

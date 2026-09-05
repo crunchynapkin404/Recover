@@ -188,6 +188,19 @@ export const activities = pgTable(
     debriefState: text("debrief_state", {
       enum: ["pending", "answered", "skipped", "expired"],
     }),
+    /**
+     * When the card went up — the moment `debriefState` became `pending`.
+     *
+     * The lifecycle expires an untouched card the day after the athlete was
+     * shown it, and this is the only column that records which day that was.
+     * Keying that off the ACTIVITY's date instead is what made a second ride
+     * of a day unanswerable: with one pending debrief allowed per user, ride
+     * two is promoted the NEXT morning, and a rule reading "the ride is not
+     * from today" expired it at the following 15-minute tick — after its push
+     * had already gone out. NULL on rows promoted before v0.139.0, where the
+     * lifecycle falls back to the old rule so they still expire.
+     */
+    debriefPendingAt: timestamp("debrief_pending_at", { withTimezone: true }),
     debriefThreadId: uuid("debrief_thread_id").references(
       () => chatThreads.id,
       {
