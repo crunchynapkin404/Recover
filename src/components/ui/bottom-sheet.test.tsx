@@ -20,7 +20,10 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root | null = null;
 let container: HTMLDivElement;
 
-async function render(ui: React.ReactNode, parent: HTMLElement = document.body) {
+async function render(
+  ui: React.ReactNode,
+  parent: HTMLElement = document.body
+) {
   container = document.createElement("div");
   parent.appendChild(container);
   root = createRoot(container);
