@@ -1,0 +1,1 @@
+ALTER TABLE "activities" ADD COLUMN "debrief_pending_at" timestamp with time zone;

@@ -8,7 +8,10 @@ import { AppShell, shellUser } from "@/components/app-shell";
 import { StreamChart } from "@/components/activity/stream-chart";
 import { LapsTable } from "@/components/activity/laps-table";
 import { StreamDataEmpty } from "@/components/activity/stream-data-empty";
-import { ActivityDebriefSection } from "@/components/debrief/activity-debrief-section";
+import {
+  ActivityDebriefSection,
+  ActivityDebriefSheet,
+} from "@/components/debrief/activity-debrief-section";
 import { DeleteActivityButton } from "@/components/activity/delete-activity-button";
 import { chartFill, STREAM_COLORS } from "@/lib/charts";
 import { activityStats, activityMeta } from "@/lib/activity-stats";
@@ -40,7 +43,13 @@ export default async function ActivityPage({
   );
 
   return (
-    <AppShell user={shellUser(user)}>
+    <AppShell
+      user={shellUser(user)}
+      // The pending debrief is a modal, so it goes in the `overlay` slot —
+      // a sibling of the background BottomSheet marks `inert`. Among the
+      // children it would sit inside that subtree and disable itself.
+      overlay={<ActivityDebriefSheet activity={activity} />}
+    >
       <header className="mb-5 pt-8">
         <Link
           href="/train?tab=history"

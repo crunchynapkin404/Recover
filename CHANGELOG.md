@@ -1,5 +1,99 @@
 # Changelog
 
+## v0.139.0 — 2026-09-05 — Every ride gets its turn
+
+### What you will notice
+
+**A ride's debrief works again on the ride's own page.** Opening an activity
+with a debrief waiting popped the sheet and then let you touch nothing in it:
+RPE 1-10, Feel, the note, Save, Skip and even the close scrim were all dead,
+and the only way out was Escape or the back button. It has been that way since
+v0.125.0. The sheet is a normal, working sheet again.
+
+**A second ride the same day is no longer thrown away.** Recover shows one
+debrief at a time and queues the rest, and the queue leaked: with two rides in
+a day the second one usually never got a card at all — no prompt, no coach
+review, nothing, permanently. With three, the third was gone for certain. Now
+every ride that lands keeps its place in the queue until it has had its turn.
+
+**Answering one debrief brings up the next straight away.** The card for the
+second ride used to wait for the next sync tick, which in practice meant the
+following morning. Two rides in an afternoon can now be debriefed in one
+sitting.
+
+**A debrief card gets the day it appeared on, not the day the ride happened.**
+The second ride's card was promoted the next morning and then expired fifteen
+minutes later, by the very next tick — after its push notification had already
+gone out. Tapping that push opened a sheet that answered "No pending debrief
+for this ride." A card now stands for the day it was shown, and expires the
+day after.
+
+### Under the hood
+
+**The sheet was inerting itself.** v0.125.0 moved the decision about the
+background's `inert` state out of `AppShell` and into `BottomSheet`, which was
+the right call — a prop's truthiness cannot know whether a modal is visible,
+and inferring it had already killed two pages. But `BottomSheet` marks
+`[data-app-background]`, and `/activity/[id]` renders its debrief through
+AppShell's CHILDREN rather than its `overlay` slot, so the panel sat inside
+the subtree it suppresses. `inert` applies to a whole subtree. The page had
+been dead for a pending debrief for fourteen releases, and no test, axe run or
+capture could see it: jsdom implements neither `inert`'s focus-blocking nor
+its pointer-blocking, and a photograph of an inert sheet is a photograph of a
+sheet.
+
+Fixed at the call site — the sheet moved to `overlay`, which meant splitting
+`ActivityDebriefSection` in two, because the prompt and the resolved review
+card belong in different slots. `BottomSheet` also now refuses to inert an
+ancestor of its own panel: a modal must never be the thing that disables
+itself, and a background left focusable behind a working sheet is the far
+smaller fault. Third bug in this family, so both the composition and the
+behaviour are pinned (`tests/sheet-slot-guard.test.ts`,
+`src/components/ui/bottom-sheet.test.tsx`).
+
+**The debrief queue leaked at both ends, and the two leaks looked like one
+bug.** The spec allows one pending debrief per user and says a second ride
+"stays unmarked and is promoted by a later scheduler tick once the first
+resolves". Neither half of the mechanism honoured that:
+
+- Promotion filtered `startDate` against **now** with a 24-hour window, so a
+  ride waiting behind another aged out of its own queue before its turn came.
+  It was then never promoted, never expired and never reviewed — it kept
+  `debriefState = null` forever, which is the same state a historical import
+  has, so nothing anywhere reported it.
+- Expiry keyed on the **activity's** date rather than the card's, so a ride
+  promoted the next morning was expired by the following tick.
+
+The two are now separate facts. Freshness is measured from **ingestion**
+(`activities.createdAt`), which is what the 24-hour rule was always about — a
+backfilled 2019 ride is still excluded because it was old when it arrived,
+while yesterday's ride keeps its place however long the queue takes.
+Expiry reads a new `debrief_pending_at`, written by the same statement that
+wins the promotion claim, so a card is measured from the day it went up. Rows
+promoted before this release carry `null` there and fall back to the old rule,
+so they still expire rather than sticking.
+
+`submitDebrief` and `skipDebrief` now run the lifecycle after storing the
+answer, so resolving a debrief hands the slot on immediately instead of at the
+next tick.
+
+**Reproduced against a real database before anything was changed.** Three
+rides on one Saturday, one sync tick a day: `morning=expired`, `noon=null`,
+`evening=null` — still null on the Tuesday, with no review and no card. That
+run is now four tests (`tests/debrief-queue.test.ts`), and every guard in this
+release was mutation-checked: dropping the self-inert check, the ingestion
+window and the card-day expiry each failed the test that names it.
+
+**One test fixture was wrong rather than one assertion.**
+`debrief-lifecycle.test.ts` created activities with an injected `NOW` in the
+past while letting `createdAt` default to the real clock — which, measured
+from ingestion, is exactly the shape of a historical import. The fixture now
+states when the row landed. The assertions are unchanged.
+
+**Migrations: additive.** `0048_kind_fabian_cortez.sql` adds one nullable
+`timestamptz` column, `activities.debrief_pending_at`. Old code ignores it, so
+an image rollback past this release is safe with no database work.
+
 ## v0.138.0 — 2026-09-04 — The ⓘ
 
 ### What you will notice

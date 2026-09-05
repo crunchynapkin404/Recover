@@ -903,7 +903,10 @@ export async function seedActivityStreams(
   if (debriefActivity) {
     await db
       .update(schema.activities)
-      .set({ debriefState: "pending" })
+      // `debriefPendingAt` alongside the state, or the next lifecycle tick
+      // expires the seeded card by the fallback rule for rows promoted
+      // before v0.139.0 — and the captures need it still up.
+      .set({ debriefState: "pending", debriefPendingAt: new Date() })
       .where(eq(schema.activities.id, debriefActivity.id));
   }
 

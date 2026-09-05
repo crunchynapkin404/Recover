@@ -8,6 +8,40 @@ import {
 import { DebriefSheet } from "./debrief-sheet";
 import { InlineMarkdown } from "@/components/ui/inline-markdown";
 
+/**
+ * The pending debrief, as a sheet over the ride's own page.
+ *
+ * SEPARATE FROM THE CARD BELOW BECAUSE THE TWO GO IN DIFFERENT SLOTS. This is
+ * a modal, so it belongs in AppShell's `overlay` — a sibling of
+ * `[data-app-background]`, the element BottomSheet marks `inert` while it is
+ * open. Returned among the page's children instead (as it was from v0.125.0,
+ * the release that moved `inert` into BottomSheet), the sheet lands INSIDE
+ * that subtree and `inert` covers it too: RPE, feel, note, Save, Skip and the
+ * close scrim all dead, and no way to dismiss it. See
+ * tests/sheet-slot-guard.test.ts.
+ *
+ * Takes the activity row the page has already fetched rather than querying
+ * again — the page owns the ownership check that used to live here.
+ */
+export function ActivityDebriefSheet({
+  activity,
+}: {
+  activity: typeof schema.activities.$inferSelect;
+}) {
+  if (activity.debriefState !== "pending") return null;
+  const raw = activity.raw as Record<string, unknown> | null;
+  return (
+    <DebriefSheet
+      activityId={activity.id}
+      activityName={activity.name ?? activity.sport}
+      metrics={formatActivityMetrics(activity)}
+      prefillRpe={rpeFromRaw(raw)}
+      prefillFeel={feelFromIcu(raw?.feel)}
+      closeHref={`/activity/${activity.id}`}
+    />
+  );
+}
+
 export async function ActivityDebriefSection({
   activityId,
   userId,
@@ -23,19 +57,10 @@ export async function ActivityDebriefSection({
   });
   if (!a || a.debriefState == null) return null;
 
-  if (a.debriefState === "pending") {
-    const raw = a.raw as Record<string, unknown> | null;
-    return (
-      <DebriefSheet
-        activityId={a.id}
-        activityName={a.name ?? a.sport}
-        metrics={formatActivityMetrics(a)}
-        prefillRpe={rpeFromRaw(raw)}
-        prefillFeel={feelFromIcu(raw?.feel)}
-        closeHref={`/activity/${a.id}`}
-      />
-    );
-  }
+  // The prompt is a sheet, and it is rendered by ActivityDebriefSheet from
+  // the page's `overlay` slot. Nothing in the flow of the page while it is
+  // still open.
+  if (a.debriefState === "pending") return null;
 
   const review = a.debriefThreadId
     ? await db.query.chatMessages.findFirst({

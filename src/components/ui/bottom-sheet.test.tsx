@@ -20,9 +20,9 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root | null = null;
 let container: HTMLDivElement;
 
-async function render(ui: React.ReactNode) {
+async function render(ui: React.ReactNode, parent: HTMLElement = document.body) {
   container = document.createElement("div");
-  document.body.appendChild(container);
+  parent.appendChild(container);
   root = createRoot(container);
   await act(async () => {
     root!.render(ui);
@@ -453,6 +453,35 @@ describe("BottomSheet and the background", () => {
       </BottomSheet>
     );
     expect(document.querySelector("[inert]")).toBeNull();
+  });
+
+  // The third bug of this family, and the first where the sheet suppressed
+  // ITSELF. `/activity/[id]` renders the post-ride debrief through AppShell's
+  // CHILDREN, not its `overlay` slot, so the panel sits INSIDE
+  // `[data-app-background]` — and `inert` applies to the whole subtree, so
+  // every control the athlete came to use (RPE 1-10, feel, the note, Save,
+  // Skip, even the close scrim) went dead the moment the sheet opened. The
+  // page composition is fixed at the call site; this is the guard that makes
+  // the mistake unrepeatable, because a modal inerting its own ancestor is
+  // never what anyone meant. A background left focusable is a lesser fault
+  // than a sheet nobody can touch.
+  it("never inerts a background that contains it", async () => {
+    const bg = document.createElement("div");
+    bg.setAttribute("data-app-background", "");
+    document.body.appendChild(bg);
+    try {
+      const el = await render(
+        <BottomSheet title="How was Ride?" closeHref="/activity/x">
+          <button>RPE 7</button>
+        </BottomSheet>,
+        bg
+      );
+      const dialog = el.querySelector('[role="dialog"]');
+      expect(bg.contains(dialog)).toBe(true);
+      expect(dialog?.closest("[inert]")).toBeNull();
+    } finally {
+      bg.remove();
+    }
   });
 });
 
