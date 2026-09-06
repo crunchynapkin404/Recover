@@ -5,6 +5,7 @@ import { withPurpose } from "@/lib/training-plan";
 import { mondayOf, addDaysYmd } from "@/lib/week-plan/service";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { blockPlacement } from "@/lib/week-plan/placement";
+import { workoutForDay } from "@/lib/interval/for-day";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/train",
@@ -125,8 +126,44 @@ describe.skipIf(!hasDb)(
       const html = await renderTrainWeek(OPEN_DAY);
       expect(html).toContain("data-structured-workout");
       expect(html).toContain("data-workout-profile");
+
       // The derived line, not the plan's hand-written prose.
-      expect(html).toMatch(/\d+ × \d+ min at \d+/);
+      //
+      // This asserted /\d+ × \d+ min at \d+/, and that shape is NOT fixed:
+      // which workout a day gets is seeded by the date itself
+      // (interval/match.ts:154-160 hash the YYYY-MM-DD to pick first a family,
+      // then a workout within it). OPEN_DAY is the Wednesday of whatever week
+      // the suite runs in, so the seed moves every week. Measured across a
+      // year of those Wednesdays with tests/setup/shift-clock.ts, 12 of 54
+      // land on a ladder and render "46 min at 55-100% FTP" instead — 22% of
+      // weeks red, for the whole week, next on the week of 2026-09-30.
+      //
+      // So assert against the line the app itself derives. workoutForDay is
+      // the one entry point the page uses (interval/for-day.ts), which keeps
+      // this a test of the WIRING — the page hands the row the derived
+      // sentence and name — without pinning what the library chose.
+      const derived = workoutForDay(
+        {
+          sport: tempo.sport,
+          purpose: tempo.purpose,
+          durationMins: tempo.durationMins,
+          intensity: tempo.intensity,
+        },
+        OPEN_DAY
+      );
+      if (!derived) {
+        throw new Error(
+          `the library derived no workout for ${OPEN_DAY} — the fixture's ` +
+            `session no longer matches anything, which is a real regression`
+        );
+      }
+      // Anchored to the element that carries each, not to the raw string:
+      // the description is ALSO the profile SVG's aria-label, so a bare
+      // `toContain` still passes with the visible line deleted. Verified by
+      // mutation — replacing the line's own <p> makes exactly these two
+      // assertions fail.
+      expect(html).toContain(`>${derived.workout.name}</p>`);
+      expect(html).toContain(`>${derived.description}</p>`);
     });
 
     it("offers the .zwo download for that day and index", async () => {

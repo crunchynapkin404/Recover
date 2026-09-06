@@ -1,0 +1,84 @@
+name: Clock drift
+
+# Runs the suite as if today were some other day.
+#
+# Nothing else here can see this class of defect. A fixture that pins an
+# absolute date, or that leans on today's weekday, is green the day it is
+# written and stays green until the calendar walks past it — at which point
+# `npm test` goes red, and `npm test` is a release gate, so nothing ships.
+# It has happened: a fixture that demanded today not be a Saturday blocked
+# v0.139.0 for a day. Auditing for it on 2026-09-06 found nine more across
+# five files, four of them permanent from a date rather than one day in seven,
+# the earliest 2026-09-14 — eight days out, and invisible to 3693 passing
+# tests that morning.
+#
+# Weekly rather than per-pull-request: these fixtures are written green and
+# rot on a timer, so what matters is finding them BEFORE their date, not
+# within the minute. A red run here is not a broken branch — it is a fixture
+# with a fuse, and the run names the date.
+#
+# Manual runs take a shift in days, for checking a fixture you are writing
+# ("does this still pass in November?").
+
+on:
+  schedule:
+    # Mondays 06:00 UTC — a red result lands with the whole week to fix it.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      shift_days:
+        description: "Days to shift the clock by (a single run)"
+        required: true
+        default: "30"
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    strategy:
+      # One red day must not cancel the others: which dates fail is the
+      # finding, so every leg has to report.
+      fail-fast: false
+      matrix:
+        # A scheduled run sweeps: every weekday, for a fixture that keys on
+        # the day of the week, then four horizons, for one that expires. A
+        # dispatched run is the single shift that was asked for.
+        shift: ${{ fromJSON(github.event_name == 'workflow_dispatch' &&
+          format('[{0}]', github.event.inputs.shift_days) ||
+          '[1,2,3,4,5,6,30,90,180,365]') }}
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    # Dummy values only, exactly as ci.yml — a public repository's workflow
+    # file must never carry a real secret.
+    env:
+      DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+      DATABASE_DRIVER: pg
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      BETTER_AUTH_SECRET: "ci-only-secret-0000000000000000000000000000000000"
+      BETTER_AUTH_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/migrate.mjs
+      - name: Run the suite on a shifted clock
+        env:
+          SHIFT: ${{ matrix.shift }}
+        run: |
+          echo "Running the suite as if today were $(date -u -d "+$SHIFT days" '+%A %Y-%m-%d')."
+          echo "Eight files are excluded while the clock is shifted; see vitest.config.ts."
+          CLOCK_SHIFT_DAYS="$SHIFT" npm test

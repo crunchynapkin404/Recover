@@ -847,7 +847,19 @@ describe.skipIf(!hasDb)("server actions", () => {
     // as a date override; one that matches must create no row, or clear one
     // that already existed. ────────────────────────────────────────────────
     describe("date overrides from a submitted week", () => {
-      const WEEK_START = "2026-09-07"; // Monday
+      // Monday of the CURRENT week, computed rather than pinned.
+      //
+      // This was `"2026-09-07"`. These tests replan a submitted week, and the
+      // engine will not relocate a session onto a day already in the past —
+      // so a pinned week stops exercising the behaviour the moment the real
+      // calendar walks past it. Measured with tests/setup/shift-clock.ts, the
+      // two tests below turn red on 2026-09-14 and never recover, and
+      // `npm test` is a release gate.
+      const WEEK_START = (() => {
+        const d = new Date();
+        d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // back to Monday
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      })();
 
       function ymd(offset: number): string {
         const d = new Date(WEEK_START + "T00:00:00");

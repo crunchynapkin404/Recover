@@ -858,6 +858,22 @@ describe.skipIf(!hasDb)("generateTrainingPlan — availability seeding", () => {
     await db.delete(schema.users).where(eq(schema.users.id, userId));
   }
 
+  // Relative, not pinned. These race dates were "2026-12-01" and
+  // "2026-12-15": once today walks up to a race there is no longer a plan to
+  // build, generateTrainingPlan seeds no standard week, and all three tests
+  // below turn red — on 2026-11-09, permanently, measured with
+  // tests/setup/shift-clock.ts. `npm test` is a release gate.
+  //
+  // Nothing here asserts the plan's LENGTH, only the standard week it seeds,
+  // so any comfortably future race serves. Same shape as FIRST_DATE in the
+  // two-A-races block below.
+  function todayYmd(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  const RACE_DATE = addDaysYmd(todayYmd(), 140);
+  const SECOND_RACE_DATE = addDaysYmd(todayYmd(), 154);
+
   beforeAll(async () => {
     await cleanupUser(FRESH_USER);
     await cleanupUser(CONFIGURED_USER);
@@ -884,7 +900,7 @@ describe.skipIf(!hasDb)("generateTrainingPlan — availability seeding", () => {
     await generateTrainingPlan({
       userId: FRESH_USER,
       raceType: "marathon",
-      raceDate: "2026-12-01",
+      raceDate: RACE_DATE,
       daysPerWeek: 4,
       hoursPerWeek: 6,
     });
@@ -936,7 +952,7 @@ describe.skipIf(!hasDb)("generateTrainingPlan — availability seeding", () => {
     await generateTrainingPlan({
       userId: FRESH_USER,
       raceType: "marathon",
-      raceDate: "2026-12-01",
+      raceDate: RACE_DATE,
       daysPerWeek: 3,
       hoursPerWeek: 9,
     });
@@ -983,7 +999,7 @@ describe.skipIf(!hasDb)("generateTrainingPlan — availability seeding", () => {
     await generateTrainingPlan({
       userId: CONFIGURED_USER,
       raceType: "marathon",
-      raceDate: "2026-12-15",
+      raceDate: SECOND_RACE_DATE,
       daysPerWeek: 5,
       hoursPerWeek: 8,
     });

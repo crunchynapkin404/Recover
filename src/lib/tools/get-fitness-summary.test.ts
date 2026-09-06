@@ -9,6 +9,21 @@ const hasDb =
 
 const USER = "test-get-fitness-summary-user";
 
+// The tool reads a 42-day window ending TODAY (get-fitness-summary.ts:9-11),
+// so a fixture row has to be dated relative to today rather than pinned. This
+// file pinned "2026-08-05", which sat inside the window only while today was
+// within six weeks of it: measured with tests/setup/shift-clock.ts, both tests
+// below turn red on 2026-09-17 and never recover. `npm test` is a release
+// gate, so that is every release blocked from that date on.
+function daysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Comfortably inside the 42-day window, on any day the suite is ever run. */
+const IN_WINDOW = daysAgo(7);
+
 describe.skipIf(!hasDb)("get_fitness_summary", () => {
   beforeAll(async () => {
     await db
@@ -42,7 +57,7 @@ describe.skipIf(!hasDb)("get_fitness_summary", () => {
     // daily_metrics — the same table the dashboard reads.
     await db.insert(schema.dailyMetrics).values({
       userId: USER,
-      date: "2026-08-05",
+      date: IN_WINDOW,
       ctl: 42.3,
       atl: 38.1,
       tsb: 4.2,
@@ -62,7 +77,7 @@ describe.skipIf(!hasDb)("get_fitness_summary", () => {
   it("still reports eftp from wellness_daily, which has no native equivalent", async () => {
     await db.insert(schema.dailyMetrics).values({
       userId: USER,
-      date: "2026-08-05",
+      date: IN_WINDOW,
       ctl: 40,
       atl: 35,
       tsb: 5,
@@ -70,7 +85,7 @@ describe.skipIf(!hasDb)("get_fitness_summary", () => {
     });
     await db.insert(schema.wellnessDaily).values({
       userId: USER,
-      date: "2026-08-05",
+      date: IN_WINDOW,
       eftp: 275,
     });
 
