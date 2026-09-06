@@ -99,6 +99,41 @@ because the description is also the profile SVG's `aria-label`, so a bare
 assertions to `>…</p>` makes the mutation fail, which is what makes them
 assertions.
 
+## Finding 3: the class is not confined to `npm test`
+
+Found by this branch's own CI, which is the part worth keeping.
+`capture (production build, cycling owner)` failed on the pull request, and
+not because of anything in it — `scripts/seed-cycling-owner.ts` refused:
+
+```
+no day in the open week is both empty and still addable, so
+train-pick-workout would have nothing to photograph. The week is:
+2026-08-31:0 ... 2026-09-06:1.
+```
+
+The seed needs one day with a session (for `train-workout`) and one empty day
+the picker can still open (for `train-pick-workout`). It got there by clearing
+the last **future** day holding a session. On a Sunday there is no future day
+in the open week: the generator can only reach today, so the week is one
+session on today, nothing to clear, and the seed refuses.
+
+**One day in seven, and it is the same shape as the bug that blocked
+v0.139.0** — measured by driving the seed through the same shim, the original
+refuses on Sunday and only on Sunday. Every pull request opened on a Sunday
+fails that check. The last green Surfaces run before this was 2026-09-05, the
+Saturday.
+
+Today's sessions now MOVE to the nearest earlier day rather than being
+deleted, because late in the week today may be carrying the only session there
+is and `train-workout` still needs one. Verified by running the seed on all
+seven weekdays: every day now yields at least one structured workout and at
+least one day that can take a picked one.
+
+**The lesson generalises past this repo's test suite.** The audit above swept
+`npm test` because that is where the known instance was. The capture seeds run
+the same risk and were not swept — this one surfaced by accident, on the one
+day of the week that shows it.
+
 ## The rule these all break
 
 **A fixture may pin absolute dates, or it may lean on "now". Not both.**

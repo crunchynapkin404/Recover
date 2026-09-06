@@ -290,12 +290,28 @@ async function main() {
   // passed — which canAddWorkout refuses. Taking the last day keeps the
   // earlier ones intact for `train-workout`, which needs a day WITH a
   // session on the very same account.
+  //
+  // LATE IN THE WEEK THERE IS NO FUTURE DAY, and this seed refused outright
+  // on those days: run it on a Sunday and the generator can only reach today,
+  // so the week is one session on today and nothing else — no future day to
+  // clear, no empty day the picker can open, `Refusing`, and the capture job
+  // fails for every pull request opened that day. Seen 2026-09-06 on the
+  // Sunday itself; the run before it, 2026-09-05, was the last green one.
+  // Same class as the fixtures this branch fixes, one layer out: a seed that
+  // needs the calendar to cooperate.
+  //
+  // So when nothing sits after today, today itself has to become the empty
+  // day — it is the only one canAddWorkout still admits. Its sessions MOVE to
+  // the nearest earlier day rather than being deleted, because
+  // `train-workout` needs a day that still HAS one on this same account, and
+  // late in the week today may be carrying the only session there is.
   {
     const w = await getOpenWeekPlan(userId);
     const t = localYmd(new Date());
     const victim = [...(w?.days ?? [])]
       .reverse()
       .find((d) => d.workouts.length > 0 && d.date > t);
+
     if (w && victim) {
       const days = w.days.map((d) =>
         d.date === victim.date
@@ -306,6 +322,29 @@ async function main() {
         .update(schema.weekPlans)
         .set({ days: serializeDays(days), updatedAt: new Date() })
         .where(eq(schema.weekPlans.id, w.id));
+    } else if (w) {
+      const today = w.days.find((d) => d.date === t);
+      // The latest day before today, which the generator always left empty.
+      const host = [...w.days].reverse().find((d) => d.date < t);
+      if (today && today.workouts.length > 0 && host) {
+        const days = w.days.map((d) => {
+          if (d.date === host.date) {
+            return {
+              ...d,
+              workouts: today.workouts,
+              status: "planned" as const,
+            };
+          }
+          if (d.date === t) {
+            return { ...d, workouts: [], status: "rest" as const };
+          }
+          return d;
+        });
+        await db
+          .update(schema.weekPlans)
+          .set({ days: serializeDays(days), updatedAt: new Date() })
+          .where(eq(schema.weekPlans.id, w.id));
+      }
     }
   }
 

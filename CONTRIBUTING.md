@@ -265,6 +265,20 @@ only in weeks whose seed lands on an interval family. That one was red for 12
 of 54 weeks, a whole week at a time. Assert against what the app derives, not
 against what it derived the week you wrote the test.
 
+**It is not only `npm test`.** `scripts/seed-cycling-owner.ts` refused to seed
+on Sundays — it cleared the last FUTURE day holding a session so the picker had
+somewhere to open, and on a Sunday the open week has no future day. One day in
+seven, every pull request opened that day failed the cycling capture. A capture
+seed that needs a particular shape of week is the same trap as a fixture that
+needs a particular weekday, so check seeds the same way:
+
+```bash
+# --import is required: the shim is a vitest setup file, so without it the
+# seed runs at the real date and passes while telling you nothing.
+CLOCK_SHIFT_DAYS=6 npx tsx --import ./tests/setup/shift-clock.ts \
+  scripts/seed-cycling-owner.ts
+```
+
 Eight files under `tests/` are excluded while the clock is shifted, listed
 with the reason in `vitest.config.ts`: they compare a timestamp Postgres wrote
 against a window JavaScript computed, and shifting only the JS clock puts the
