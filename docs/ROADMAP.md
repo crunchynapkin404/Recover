@@ -710,3 +710,22 @@ Named so they are not rediscovered; unscheduled so they are not promises.
   `settings-dup-id.test.tsx` is the actual guard. Same shape as the
   collapsed-section gap `section-order.test.ts` guards: a capture that passes
   over a state nobody has is not evidence.
+
+- **The injected clock is honoured for reads and ignored for writes.** Found
+  2026-09-06 while sweeping the suite for fixtures that key on the real
+  calendar (`docs/2026-09-06-calendar-dependent-fixtures.md`). Eight files
+  under `tests/` cannot run on a shifted clock, because each compares a
+  timestamp POSTGRES wrote against a window JAVASCRIPT computed. The clearest
+  instance: `morning-insight.ts` derives "start of today" from an injected
+  `now` (`todaysBrief`, :115-119) and filters `chat_messages.created_at` with
+  it, while its own insert (:490) leaves that column to the database's
+  `defaultNow()`. Pass a `now` for another day and the function cannot find
+  the brief it just wrote.
+  **Not a production defect** — the app and its database share a host, so the
+  two clocks agree — which is exactly why it is unscheduled rather than
+  fixed. What it costs is test reach: those eight files are excluded from the
+  clock-drift sweep (`vitest.config.ts` lists them with the reason), so a
+  fixture inside them that genuinely keys on the calendar is invisible to the
+  guard that exists to catch that. The fix is per-file and already has a
+  worked example — v0.139.0's `debrief-lifecycle.test.ts`, where the fixture
+  came to state when the row landed rather than leaving it to the real clock.

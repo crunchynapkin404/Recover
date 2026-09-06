@@ -221,6 +221,55 @@ npm run format:check
 npm run build
 ```
 
+**A fixture that keys on the real calendar will block a release, not just
+fail.** `npm test` runs in `ci.yml`, which every release passes through, so a
+test that is red on certain dates means nothing ships on those dates. This has
+happened: `fuelling-open-day.test.tsx` chose Saturday of the current week as
+its "open day" and threw when today WAS that Saturday, blocking v0.139.0 on
+2026-09-05 — one day in seven when no release could be cut.
+
+Auditing for it found nine more, in five files, and the worst of them do not
+clear the next morning:
+
+```bash
+# run the whole suite as if today were three days from now
+CLOCK_SHIFT_DAYS=3 npm test
+
+# the sweep that found them: every weekday, plus month ends, a year boundary
+# and a leap day
+for d in 1 2 3 4 5 6 7 24 55 116 117 175 541; do CLOCK_SHIFT_DAYS=$d npm test; done
+```
+
+`tests/setup/shift-clock.ts` moves only `new Date()` and `Date.now()`; every
+other constructor form and every static passes through, so a fixture naming an
+absolute date still gets that date. It is inert without the variable.
+
+**The rule the failures all break: a fixture may pin absolute dates, or it may
+lean on "now", but it may not do both.** Each of these did both, and each was
+green when it was written:
+
+- a `daily_metrics` row dated `"2026-08-05"` read back through a window of
+  `today - 42 days` — fine for six weeks, red from 2026-09-17 forever;
+- a week pinned to `"2026-09-07"` whose sessions the engine will not replan
+  once those days are in the past — red from 2026-09-14;
+- races pinned to `"2026-12-01"`/`"2026-12-15"`, which stop being races to
+  plan for — red from 2026-11-09;
+- `simulateRaceForm(user, change)` called without its third argument, so it
+  read the real clock while every date around it was pinned to July 2026 —
+  red from 2026-10-02.
+
+**And "relative to today" is not automatically safe.** Which structured
+workout a day gets is a hash of that day's date (`interval/match.ts`), so a
+test asserting the SHAPE of the rendered line — `3 × 10 min at 76` — passes
+only in weeks whose seed lands on an interval family. That one was red for 12
+of 54 weeks, a whole week at a time. Assert against what the app derives, not
+against what it derived the week you wrote the test.
+
+Eight files under `tests/` are excluded while the clock is shifted, listed
+with the reason in `vitest.config.ts`: they compare a timestamp Postgres wrote
+against a window JavaScript computed, and shifting only the JS clock puts the
+two days apart in a way no real date does.
+
 **A `typecheck` error whose path starts with `.next/` is almost never yours.**
 Those files are generated, and a dev server, a `build`, or another checkout of
 this repo regenerating them mid-run makes `tsc` read one half-written. Seen

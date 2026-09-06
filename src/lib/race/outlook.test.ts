@@ -208,11 +208,21 @@ describe.skipIf(!hasDb)("raceCard", () => {
   });
 
   describe("simulateRaceForm", () => {
+    // BOTH calls pass NOW explicitly. simulateRaceForm's third parameter
+    // defaults to `new Date()` (outlook.ts:155), and omitting it here made
+    // these two the only tests in this file that read the REAL clock while
+    // every fixture date around them is pinned to July 2026. Once today walks
+    // past CAPPED's race (2026-10-01), nextUpcomingRace finds nothing and
+    // "carries capped through" turns red — on 2026-10-02, permanently,
+    // measured with tests/setup/shift-clock.ts. The load-history test above
+    // would have kept passing for the wrong reason: no race missing its load
+    // history looks the same as no race at all.
     it("reports missing load history rather than a fabricated comparison", async () => {
-      const r = await simulateRaceForm(NO_LOAD, {
-        kind: "skip",
-        fromDate: "2026-07-22",
-      });
+      const r = await simulateRaceForm(
+        NO_LOAD,
+        { kind: "skip", fromDate: "2026-07-22" },
+        NOW
+      );
       expect(r.available).toBe(false);
       if (r.available) return;
       expect(r.kind).toBe("missing_input");
@@ -221,10 +231,11 @@ describe.skipIf(!hasDb)("raceCard", () => {
     });
 
     it("carries capped through to the caller", async () => {
-      const r = await simulateRaceForm(CAPPED, {
-        kind: "skip",
-        fromDate: "2026-07-22",
-      });
+      const r = await simulateRaceForm(
+        CAPPED,
+        { kind: "skip", fromDate: "2026-07-22" },
+        NOW
+      );
       expect(r.available).toBe(true);
       if (!r.available) return;
       expect(r.value.capped).toBe(true);
