@@ -236,9 +236,14 @@ describe.skipIf(!hasDb)("Train says which seven days it is showing", () => {
 
   it("puts the week's real dates in the header beside its number", async () => {
     const html = await renderTrainAs(CURRENT_USER);
-    // "week 1 of 12" says a position in a skeleton. This says which days.
-    expect(html).toContain(
-      formatDayRange(THIS_MONDAY, addDaysYmd(THIS_MONDAY, 6))
-    );
+    // Asserted on its OWN element, not merely "somewhere in the page".
+    //
+    // The first version of this appended the range to the header's subtitle,
+    // which is a single `truncate` line: the phone capture rendered
+    // "Confirmed race plan (demo) · week 1 …" with the dates cut off, and a
+    // bare `toContain` would still have passed on the desktop markup. Pinning
+    // the attribute pins the line that cannot truncate.
+    const range = formatDayRange(THIS_MONDAY, addDaysYmd(THIS_MONDAY, 6));
+    expect(html).toContain(`data-week-dates="${range}"`);
   });
 });
