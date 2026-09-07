@@ -206,6 +206,38 @@ export async function getOpenWeekPlan(
   };
 }
 
+/**
+ * The open week, but only when it is THIS week.
+ *
+ * `getOpenWeekPlan` above answers a database question — "which row is open" —
+ * and deliberately keeps answering it for the engine, the MCP tools and the
+ * plan editor, which all operate on the open row as such. What an ATHLETE-
+ * FACING surface needs is a different question: "what is my week", which a row
+ * from a week that has ended cannot answer.
+ *
+ * Those were the same question for as long as the rollover was reliable, and
+ * they came apart the moment it was not. The rollover ran only as the last step
+ * of generateWeeklyReview, behind two guards about review CONTENT, so on a
+ * Monday before the review hour Train drew last week's seven days with this
+ * week's heading and nothing said otherwise — reported 2026-09-07.
+ * runWeekRollovers now keeps the row current on its own schedule; this keeps
+ * the SURFACE honest if that ever fails again, which is the half a scheduler
+ * fix cannot cover.
+ *
+ * Returning null is deliberate rather than repairing on read. The page's
+ * "no current week" state already offers "Plan this week", wired to the
+ * idempotent rollover, so the athlete gets a working button instead of a wrong
+ * grid — and a render stays a render, with no write hidden inside it.
+ */
+export async function getCurrentWeekPlan(
+  userId: string,
+  now = new Date()
+): Promise<OpenWeekPlan | null> {
+  const week = await getOpenWeekPlan(userId);
+  if (!week) return null;
+  return week.weekStart === mondayOf(now) ? week : null;
+}
+
 export async function listAdjustments(
   weekPlanId: string
 ): Promise<AdjustmentRow[]> {

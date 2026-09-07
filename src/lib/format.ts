@@ -17,6 +17,26 @@ export function formatDay(date: Date | string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/**
+ * An inclusive day span, saying the month once when it does not change:
+ * "Sep 7-13", and "Sep 29 - Oct 5" when it does.
+ *
+ * Built on formatDay rather than beside it, so a week's dates and a single
+ * day's are formatted by one function and cannot drift apart.
+ */
+export function formatDayRange(
+  start: Date | string,
+  end: Date | string
+): string {
+  const s = typeof start === "string" ? new Date(`${start}T00:00:00`) : start;
+  const e = typeof end === "string" ? new Date(`${end}T00:00:00`) : end;
+  const sameMonth =
+    s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear();
+  return sameMonth
+    ? `${formatDay(s)}\u2013${e.getDate()}`
+    : `${formatDay(s)} \u2013 ${formatDay(e)}`;
+}
+
 export function formatSleepHours(secs: number | null): string {
   if (secs == null) return "—";
   const h = secs / 3600;

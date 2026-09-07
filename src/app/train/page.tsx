@@ -67,10 +67,11 @@ import type { Band } from "@/lib/readiness";
 import { Figure } from "@/lib/uncertainty";
 import {
   addDaysYmd,
-  getOpenWeekPlan,
+  getCurrentWeekPlan,
   listAdjustments,
   planConstraints,
 } from "@/lib/week-plan/service";
+import { formatDayRange } from "@/lib/format";
 import { deriveDayActuals } from "@/lib/week-plan/actuals";
 import { openDayFrom } from "@/lib/week-plan/day-shape";
 import { verdictLine } from "@/lib/week-plan/verdict-line";
@@ -382,11 +383,25 @@ export default async function TrainPage({
  */
 function TrainHeader({
   subtitle,
+  weekDates,
   action,
   tab,
   href,
 }: {
   subtitle?: string;
+  /**
+   * The seven days on screen, e.g. "Sep 7-13". Its OWN line, deliberately.
+   *
+   * It first went on the end of `subtitle`, which is one `truncate` line — so
+   * on a phone it read "Confirmed race plan (demo) · week 1 …" and the dates
+   * were the first thing cut. The capture passed: the page rendered, and a
+   * truncated line is still a line. Opening the PNG is what found it.
+   *
+   * A week number says a position in a skeleton; this says which week. It is
+   * the answer to the question the athlete had on 2026-09-07, so it does not
+   * get to be the part that falls off the end.
+   */
+  weekDates?: string;
   /**
    * Sits on the title row, right-aligned. Room for ONE compact element —
    * a chip or a small tab group. Anything more risks colliding with the
@@ -401,6 +416,14 @@ function TrainHeader({
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-title font-bold tracking-[-0.03em]">Train</h1>
+          {weekDates && (
+            <p
+              data-week-dates={weekDates}
+              className="mt-0.5 text-label font-bold text-ink-secondary"
+            >
+              {weekDates}
+            </p>
+          )}
           {subtitle && (
             <p className="mt-0.5 truncate text-label font-medium text-ink-muted">
               {subtitle}
@@ -568,7 +591,9 @@ async function WeekTab({
     };
   }
 
-  const week = await getOpenWeekPlan(userId);
+  // getCurrentWeekPlan, not getOpenWeekPlan: a week that has ended must not
+  // render as this one. See its doc, and the 2026-09-07 report.
+  const week = await getCurrentWeekPlan(userId);
   const adjustments = week ? await listAdjustments(week.id) : [];
   const races = await listRaces(userId);
   // Per-day stage detail per race — a separate table, so one batched query
@@ -1595,6 +1620,11 @@ async function WeekTab({
           tab="week"
           href={resolvedHref}
           subtitle={subtitle}
+          weekDates={
+            week
+              ? formatDayRange(week.weekStart, addDaysYmd(week.weekStart, 6))
+              : undefined
+          }
           action={chip}
         />
 

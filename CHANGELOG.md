@@ -1,5 +1,93 @@
 # Changelog
 
+## v0.140.0 — 2026-09-07 — Monday is Monday
+
+### What you will notice
+
+**Your week changes over on Monday now, whatever else has happened.** Opening
+Train on a Monday morning showed last week — the same seven days, under this
+week's heading, with nothing on the page saying so. It corrected itself later in
+the morning, which made it look like a glitch rather than the thing it was. The
+week now turns at midnight, on its own.
+
+**Train says which seven days it is showing.** Under the title, beside "week 1
+of 16", the dates: `Sep 7-13`. A week number is a position in a plan; it never
+said which week.
+
+**The weekly review moves to Sunday evening, and leads with the week ahead.**
+It used to arrive Monday at 07:00 and describe the week you had just finished.
+Now it comes on Sunday evening and opens with what is coming — sessions, hours,
+the target — with the week just gone after it. It is marked `(provisional)`
+while next week is still a forecast, which it is until Monday.
+
+**If a week ever does go stale, the app now says so instead of showing it.**
+Train and Today refuse a week that does not contain today, and offer "Plan this
+week", which fixes it in one tap. That button existed all along; it was
+unreachable in exactly the situation it was for.
+
+### Under the hood
+
+**The rollover was never a calendar event.** Closing last week and building this
+one ran in one automatic place: the last step of the weekly review, behind two
+guards about review CONTENT. On a Monday before the review hour, `mostRecentSlot`
+resolves to LAST Monday, so last week's own review satisfied the
+at-most-once guard and the function returned before reaching the rollover —
+every Monday, for seven hours, by construction. An athlete with fewer than three
+non-Strava activities in seven days returned at the next guard instead, and
+their week never rolled over at all; `scheduler.ts` already said in a comment
+that this guard "never advances" for them.
+
+`runWeekRollovers` is now its own scheduler pass, every tick, ungated by hour,
+keyed on the athlete's plan rather than on their connections — the week belongs
+to the plan, so someone who logs manually still gets a Monday.
+
+**And `getOpenWeekPlan` selects on `status = 'open'` with no date filter**,
+which is what made it invisible rather than merely wrong. `getCurrentWeekPlan`
+returns the open week only when it is this week, and the two athlete-facing
+surfaces use it; the engine, the MCP tools and the plan editor keep the old
+reader, because "which row is open" and "what is my week" are genuinely
+different questions that only looked like one while the rollover was reliable.
+
+**Moving the review to Sunday needed the window to move with it.** Sunday is the
+only day that belongs to the week it closes, so the old flat
+`mondayOf(now) - 7` would have had a Sunday-evening review report the week
+BEFORE the one just finished — a full set of real figures describing the wrong
+seven days. `reviewWeekStartFor` keys on the slot, so a review that fires late
+still describes its own week.
+
+**Two guards were found not guarding.** The review's window test asserted
+arithmetic it performed itself, so it would have passed whatever the review did
+— including that Sunday defect. And the header's date range first went on the
+end of a `truncate` line: the phone capture read "Confirmed race plan (demo) ·
+week 1 …" with the dates cut off, while a `toContain` over the document still
+passed, because truncation is CSS. Opening the picture is what found it.
+Both now assert the thing they exist for.
+
+**The figures for next week have one owner.** `NextWeekSummary` derived the
+session count and planned hours inline in its JSX and the review needed the same
+sentence in plain text; `week-plan/week-ahead.ts` owns them and both read it.
+
+**Nine tests were carrying a fuse**, found by running the whole suite as if
+today were another day (`tests/setup/shift-clock.ts`, and a weekly `Clock drift`
+workflow). Each was green when written and turned red permanently on a date —
+the earliest 2026-09-14, eight days out. A fixture may pin absolute dates, or
+lean on "now", but not both. A tenth lived in the cycling capture seed, which
+refused to seed on Sundays, so that job failed for every pull request opened on
+one. Full write-up in `docs/2026-09-06-calendar-dependent-fixtures.md`.
+
+**Migrations: `0049_organic_reaper.sql` is additive in shape and carries one
+data change.** It moves `notification_prefs.weekly_review_day/hour` defaults to
+Sunday 18:00 and updates rows still sitting on the old default exactly — a row
+that says anything else was chosen deliberately and is left alone. No column is
+dropped, renamed or made NOT NULL, so v0.139.0 reads the table unchanged.
+
+**ROLLBACK CAVEAT, and it is not the migration's shape.** An image rollback past
+this release leaves those prefs at Sunday 18:00 while the code returns to the
+flat `mondayOf(now) - 7` window — so a Sunday review would then report the week
+before the one just finished. The rollback is structurally safe and
+semantically wrong. Reset `weekly_review_day = 1, weekly_review_hour = 7` for
+any affected athlete if rolling back, or accept one misdated review.
+
 ## v0.139.0 — 2026-09-05 — Every ride gets its turn
 
 ### What you will notice

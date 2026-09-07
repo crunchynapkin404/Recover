@@ -79,6 +79,30 @@ export function mostRecentSlot(
   return slot;
 }
 
+/**
+ * The Monday of the week this review is about.
+ *
+ * Sunday is the only day that belongs to the week it closes. Every other day
+ * sits inside a week that is still running, so the most recent COMPLETE week
+ * is the previous one — which is why this was a flat `mondayOf(now) - 7` while
+ * the slot defaulted to Monday.
+ *
+ * Moving the slot to Sunday evening (so the athlete gets the week's story
+ * while it is still the week, and can plan the next one) breaks that
+ * assumption: on Sunday 2026-09-13 the flat formula reviews 2026-08-31..09-06,
+ * the week BEFORE the one that is ending. It would have been a full set of
+ * real figures describing the wrong seven days, which is the one failure this
+ * file's own window comment exists to prevent.
+ *
+ * Keyed on the SLOT rather than on `now`, so a review that fires late — the
+ * 09:00 backstop picking up a missed Sunday evening — still describes the week
+ * its slot belonged to.
+ */
+export function reviewWeekStartFor(slot: Date): string {
+  const monday = mondayOf(slot);
+  return slot.getDay() === 0 ? monday : addDaysYmd(monday, -7);
+}
+
 async function findOrCreateWeeklyThread(userId: string) {
   const existing = await db.query.chatThreads.findFirst({
     where: and(
@@ -125,7 +149,13 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
   const prefs = await db.query.notificationPrefs.findFirst({
     where: eq(schema.notificationPrefs.userId, userId),
   });
-  const reviewDay = prefs?.weeklyReviewDay ?? 1; // default Monday
+  // The OPERATIVE default is the column's own (notification_prefs.
+  // weekly_review_day, Sunday since migration 0049) — getOrCreatePrefs in
+  // push.ts writes a row for every user, so this `?? ` is the rowless path
+  // only, and it is deliberately NOT the product default: the hour beside it
+  // is FALLBACK_REVIEW_HOUR, which is shared with the monthly report and
+  // pinned to the 09:00 backstop rather than to the review's own evening.
+  const reviewDay = prefs?.weeklyReviewDay ?? 0;
   // FALLBACK_REVIEW_HOUR only applies when prefs is undefined (no row at
   // all) — see its own doc comment above for why that's rare in practice.
   const reviewHour = prefs?.weeklyReviewHour ?? FALLBACK_REVIEW_HOUR;
@@ -186,7 +216,7 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
   // deriveDayActuals already excludes Strava (Nov 2024 API agreement) and
   // already coalesces the local timestamp, so routing through it closes all
   // three problems at once.
-  const reviewWeekStart = addDaysYmd(mondayOf(now), -7);
+  const reviewWeekStart = reviewWeekStartFor(slot);
   const reviewWeekEnd = addDaysYmd(reviewWeekStart, 6);
   const prevWeekStart = addDaysYmd(reviewWeekStart, -7);
 
@@ -297,8 +327,42 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
       }
     : null;
 
+  // ── The week ahead ─────────────────────────────────────────────────────
+  //
+  // Leads the message, because it is the half the athlete can still act on.
+  // The review moved to Sunday evening for exactly this: what is coming is
+  // worth more the evening before it starts than it is on Wednesday.
+  //
+  // "Next" is the week AFTER the one under review, which lands correctly for
+  // either slot: from a Sunday slot the reviewed week is the one ending, so
+  // this is the week starting tomorrow; from a Monday slot the reviewed week
+  // is the one just closed, so this is the week the athlete is now in.
+  //
+  // projectWeek returns a forecast when no week_plans row exists yet — the
+  // normal Sunday case, since the rollover runs on Monday — and reads the real
+  // row once there is one. Best-effort: a review that cannot see next week is
+  // still worth sending, and this must never be the reason one is not.
+  const aheadWeekStart = addDaysYmd(reviewWeekStart, 7);
+  let aheadLine = "";
+  try {
+    const { projectWeek } = await import("@/lib/week-plan/project");
+    const { weekAheadSentence } = await import("@/lib/week-plan/week-ahead");
+    const ahead = await projectWeek(userId, aheadWeekStart, now);
+    if (ahead) {
+      aheadLine =
+        `🗓️ Next week: ${weekAheadSentence(ahead.days, ahead.target.hours)}` +
+        `${ahead.provisional ? " (provisional)" : ""}.\n`;
+    }
+  } catch (err) {
+    logger.warn("weekly review could not project the week ahead", {
+      userId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   // ── Generate review ────────────────────────────────────────────────────
   const templateText =
+    aheadLine +
     `📊 Week in review: ${Math.round(weekLoad)} load across ${sessions} sessions ` +
     `(${delta >= 0 ? "↑" : "↓"} ${Math.abs(delta)}% vs last week). ` +
     `Readiness averaged ${avgReadiness}. CTL ${ctl} (${ctlDelta >= 0 ? "+" : ""}${ctlDelta}).` +
@@ -338,8 +402,13 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
           ? `Plan adherence: ${planAdherence.adherencePct}% (target ${planAdherence.targetLoad}, actual ${planAdherence.actualLoad})\n`
           : "") +
         driftLine +
+        (aheadLine ? `\n## The Week Ahead\n${aheadLine}` : "") +
         `\n## Instructions\n` +
-        `- Lead with the headline: bigger/smaller/recovery week\n` +
+        (aheadLine
+          ? `- OPEN with the week ahead: it is what the athlete can still act on, and this arrives the evening before it starts\n` +
+            `- Quote its session count and hours as given; never restate them as your own estimate\n` +
+            `- Then the week just gone, briefly\n`
+          : `- Lead with the headline: bigger/smaller/recovery week\n`) +
         `- Comment on readiness trend and recovery quality\n` +
         `- End with one actionable suggestion for next week\n` +
         `- Keep it to 3-4 sentences. Plain text only — no tool calls, no charts.`;
