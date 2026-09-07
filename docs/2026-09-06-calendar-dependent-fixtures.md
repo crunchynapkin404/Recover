@@ -61,11 +61,23 @@ All six weekdays produced a **byte-identical** failing set, and so did the +7
 control. There is no fixture left in the suite whose result depends on which
 day of the week the run lands on. The class v0.139.0 hit is closed.
 
-## Finding 2: ten tests that expire
+## Finding 2: nine tests that expire
 
 These are not weekday-sensitive, which is why the weekday sweep could not see
 them and why they are worse. Each was green the day it was written and each
 turns red on a date, permanently, with no run in between to warn anyone.
+
+**This heading said "ten", and the table under it has always summed to nine
+(2 + 2 + 1 + 3 + 1).** The count came from the sweep's ten extra failures, of
+which `llm-usage.test.ts` is the instrument rather than the code — excluded by
+name three sections below, and still counted here. Corrected 2026-09-07.
+
+The merge commit and pull request `#260` carry the wrong figure in their
+titles, where it cannot be edited: _"ten tests with a fuse"_. Nine is the
+number. Noted rather than quietly fixed, because a document about counting the
+calendar correctly is the last place to leave an uncorrected count — and this
+is the same shape as the drift `ROADMAP.md` records twice already, a true
+number from one measurement standing in for the one actually claimed.
 
 | test                                           | mechanism                                                                                                                          | red from         |
 | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
