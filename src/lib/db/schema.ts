@@ -583,8 +583,13 @@ export const notificationPrefs = pgTable("notification_prefs", {
     .references(() => users.id, { onDelete: "cascade" }),
   morningPushEnabled: boolean("morning_push_enabled").notNull().default(true),
   lastMorningPushDate: date("last_morning_push_date"),
-  weeklyReviewDay: smallint("weekly_review_day").notNull().default(1), // 0=Sun..6=Sat, default Monday
-  weeklyReviewHour: smallint("weekly_review_hour").notNull().default(7), // 0-23, default 7am
+  // 0=Sun..6=Sat. Sunday evening since v0.140.0: the review is worth more
+  // while the week it describes is still the week, and it is when the athlete
+  // plans the next one. Monday 07:00 also made the review the only thing that
+  // rolled the week over, so a Monday-morning athlete met last week's plan
+  // until it ran — see runWeekRollovers, which took that job off it.
+  weeklyReviewDay: smallint("weekly_review_day").notNull().default(0),
+  weeklyReviewHour: smallint("weekly_review_hour").notNull().default(18),
   // v0.6: opt-in Strava auto-describe (write-back of intervals.icu metrics).
   autoDescribeStrava: boolean("auto_describe_strava").notNull().default(false),
   // v0.6.2: null = every field (v0.6 output); object = explicit allowlist.

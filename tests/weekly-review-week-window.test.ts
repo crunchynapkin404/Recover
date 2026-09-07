@@ -1,25 +1,53 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { mondayOf, addDaysYmd } from "@/lib/week-plan/service";
+import { mostRecentSlot, reviewWeekStartFor } from "@/lib/weekly-review";
 
 // No database: this pins the window arithmetic the review must use, which
 // is the part that was wrong. The end-to-end agreement with rollover is
 // covered by the DB-gated test below it.
+//
+// THESE NOW CALL `reviewWeekStartFor`. They used to recompute
+// `addDaysYmd(mondayOf(now), -7)` inline and assert THAT — arithmetic the test
+// performed itself, so it would have passed whatever the review actually did,
+// including the Sunday-slot defect below. A guard has to touch the code it
+// guards.
 describe("the review's week window", () => {
-  it("is the calendar week that just closed", () => {
+  const weekEndOf = (start: string) => addDaysYmd(start, 6);
+
+  it("is the calendar week that just closed, from a mid-week slot", () => {
     // A Wednesday. The week under review is the PREVIOUS Mon-Sun.
-    const now = new Date("2026-08-05T04:00:00");
-    const weekStart = addDaysYmd(mondayOf(now), -7);
-    const weekEnd = addDaysYmd(weekStart, 6);
+    const weekStart = reviewWeekStartFor(new Date("2026-08-05T04:00:00"));
     expect(weekStart).toBe("2026-07-27");
-    expect(weekEnd).toBe("2026-08-02");
+    expect(weekEndOf(weekStart)).toBe("2026-08-02");
+  });
+
+  it("is the week that is ENDING when the slot is Sunday", () => {
+    // The regression this exists for. Sunday is the only day that belongs to
+    // the week it closes, so a Sunday-evening review covers Mon-Sun of THAT
+    // week. Under the old flat `mondayOf(now) - 7` this returned 2026-08-31 —
+    // a full set of real figures describing the week before the one the
+    // athlete had just finished.
+    const weekStart = reviewWeekStartFor(new Date("2026-09-13T18:00:00"));
+    expect(weekStart).toBe("2026-09-07");
+    expect(weekEndOf(weekStart)).toBe("2026-09-13");
+    expect(weekStart).not.toBe("2026-08-31");
+  });
+
+  it("hands a Sunday slot and the Monday after it the same week", () => {
+    // A review that fires late — the 09:00 backstop picking up a missed
+    // Sunday evening — must not silently describe a different seven days.
+    expect(reviewWeekStartFor(new Date("2026-09-13T18:00:00"))).toBe(
+      reviewWeekStartFor(new Date("2026-09-14T09:00:00"))
+    );
   });
 
   it("spans exactly 6 days start-to-end (7 days inclusive), from any day of the week", () => {
     for (let i = 0; i < 7; i++) {
-      const now = new Date(`2026-08-0${3 + i}T04:00:00`);
-      const weekStart = addDaysYmd(mondayOf(now), -7);
-      const weekEnd = addDaysYmd(weekStart, 6);
+      const weekStart = reviewWeekStartFor(
+        new Date(`2026-08-0${3 + i}T04:00:00`)
+      );
+      const weekEnd = weekEndOf(weekStart);
       // A string comparison (weekEnd > weekStart) would pass for ANY
       // positive offset, not specifically 6 — measure the actual span in
       // milliseconds instead, so a quietly-shortened or -lengthened
@@ -30,6 +58,22 @@ describe("the review's week window", () => {
         (24 * 60 * 60 * 1000);
       expect(spanDays).toBe(6);
       expect(new Date(weekStart + "T00:00:00").getDay()).toBe(1); // Monday
+    }
+  });
+
+  it("never reviews a week that has not finished", () => {
+    // Mon-Sat slots must stay a week back; only Sunday may claim its own.
+    for (const [day, iso] of [
+      ["Mon", "2026-09-07T07:00:00"],
+      ["Tue", "2026-09-08T07:00:00"],
+      ["Sat", "2026-09-12T07:00:00"],
+    ] as const) {
+      const slot = new Date(iso);
+      const weekStart = reviewWeekStartFor(slot);
+      expect(
+        new Date(weekEndOf(weekStart) + "T23:59:59") <= slot,
+        `${day}: reviewed week must already be over`
+      ).toBe(true);
     }
   });
 });
@@ -49,12 +93,35 @@ function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// A MONDAY slot, pinned explicitly rather than inherited from the column
+// default (Sunday evening since migration 0049).
+//
+// This block's invariant is "a review that runs AFTER the week closed reports
+// the number the rollover then stores". A Sunday-evening slot cannot exercise
+// it: the reviewed week is still running that evening, so rolloverWeekPlan
+// finds this week already open, returns "skipped", and books nothing — the
+// booking happens on Monday. That is a real property of reviewing a week
+// before it ends, not a fault to assert around, and it gets its own coverage
+// rather than being smuggled in here.
+const REVIEW_DAY = 1; // Monday
+const REVIEW_HOUR = 7;
+
 describe.skipIf(!hasDb)("review and rollover agree on the week", () => {
   let planId: string;
   const now = new Date();
-  // The exact window generateWeeklyReview computes for "now" — same
-  // functions, same inputs, so this cannot drift from the code under test.
-  const weekStart = addDaysYmd(mondayOf(now), -7);
+  // The exact window generateWeeklyReview computes — by CALLING what it calls,
+  // not by restating it.
+  //
+  // This said `addDaysYmd(mondayOf(now), -7)` under a comment claiming it
+  // "cannot drift from the code under test". It drifted the moment the window
+  // became slot-aware: on a Sunday the review covers the week that is ending,
+  // this fixture still seeded the week before it, and the two numbers were a
+  // whole week apart. Restating a formula is not the same as sharing one.
+  //
+  // Prefs are seeded explicitly below rather than left to the defaults, so the
+  // slot is this test's own choice and not a thing it inherits.
+  const slot = mostRecentSlot(now, REVIEW_DAY, REVIEW_HOUR);
+  const weekStart = reviewWeekStartFor(slot);
   const dates = Array.from({ length: 7 }, (_, i) => addDaysYmd(weekStart, i));
 
   function emptyDay(date: string) {
@@ -150,12 +217,14 @@ describe.skipIf(!hasDb)("review and rollover agree on the week", () => {
       role: "member",
     });
 
-    // Prefs set so "now" is past the review slot — the due-since-slot guard
-    // then treats the review as due, same idiom as tests/weekly-review.test.ts.
+    // The slot this block reasons about, seeded rather than derived from
+    // "now": mostRecentSlot always lands the Monday slot in the past, so the
+    // due-since-slot guard treats the review as due on every weekday, and
+    // `weekStart` above is the same week on every weekday too.
     await db.insert(schema.notificationPrefs).values({
       userId: USER,
-      weeklyReviewDay: now.getDay(),
-      weeklyReviewHour: now.getHours(),
+      weeklyReviewDay: REVIEW_DAY,
+      weeklyReviewHour: REVIEW_HOUR,
     });
 
     const [plan] = await db

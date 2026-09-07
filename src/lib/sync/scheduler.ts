@@ -516,6 +516,18 @@ export async function runSchedulerTick(
     }
   }
 
+  // The week rolls over on its own schedule, not the review's. Ungated by
+  // hour on purpose: an athlete opening Train at 06:00 on a Monday is the
+  // case this exists for. See runWeekRollovers.
+  try {
+    const rolled = await runWeekRollovers();
+    if (rolled > 0) logger.info("week plans rolled over", { rolled });
+  } catch (err) {
+    logger.error("week rollover pass failed", {
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   // Morning brief backstop (+ weekly/monthly re-check past BACKSTOP_HOUR) —
   // guarded like the rest, never breaks the tick.
   try {
@@ -608,6 +620,77 @@ export async function refreshDailyDecay(): Promise<number> {
  * the identical pattern, established after that function hit the same class
  * of incident first.
  */
+/**
+ * Roll every athlete with an active plan onto the current week.
+ *
+ * "It is Monday" is not an hourly question, and until v0.140.0 nothing asked
+ * it on its own. The only automatic rollover was the LAST step of
+ * `generateWeeklyReview`, behind two early returns that have nothing to do
+ * with the calendar:
+ *
+ *   - the at-most-once-per-cycle guard. On Monday before the athlete's
+ *     configured review hour (notification_prefs defaults to 07:00),
+ *     `mostRecentSlot` resolves to LAST Monday, so last week's own review
+ *     message satisfies it and the function returns. Every Monday, for seven
+ *     hours, the athlete opened Train and saw last week.
+ *   - the "<3 non-Strava activities in seven days" guard, which returns for an
+ *     athlete who simply trains less than that, and never advances — as the
+ *     comment in runMorningBriefBackstop already says of it. For them the week
+ *     never rolled over at all.
+ *
+ * Reported from production on Monday 2026-09-07, and there was no way out from
+ * inside the app: `getOpenWeekPlan` selects on `status = 'open'` with no date
+ * filter, so a week that never closed keeps rendering as the current one, and
+ * train/page.tsx only offers its "Plan this week" button when NO open week
+ * exists — precisely not this case.
+ *
+ * KEYED ON THE ACTIVE PLAN, not on connections. The week belongs to the plan;
+ * an athlete who logs manually and has connected nothing still gets a Monday.
+ * runMorningBriefBackstop's population is the wrong one to borrow here, and
+ * it is also gated to BACKSTOP_HOUR, which is why this is its own pass.
+ *
+ * Idempotent per user-week — `rolloverWeekPlan` returns "skipped" once a row
+ * for `mondayOf(now)` exists under the active plan — so on the other six days
+ * this costs two indexed reads per athlete. Returns how many actually rolled.
+ *
+ * `opts.userIds` is the same test-only safety valve the passes around it use:
+ * this writes real week plans, and the DB-gated tests share a live database.
+ */
+export async function runWeekRollovers(
+  now = new Date(),
+  opts?: { userIds?: string[] }
+): Promise<number> {
+  // Every athlete who has ever had a plan, NOT filtered to the active one.
+  // Deliberate: tests/plan-identity-single-producer.test.ts holds that
+  // src/lib/active-plan.ts is the only place allowed to decide which plan an
+  // athlete is on, and this pass has no business making that call. It does not
+  // need to — `rolloverWeekPlan` opens with `getActivePlan(userId)` and returns
+  // "skipped" when there is none, so an athlete carrying only archived plans
+  // costs one extra indexed read and nothing else.
+  const plans = await db.query.trainingPlans.findMany({
+    where: opts?.userIds
+      ? inArray(schema.trainingPlans.userId, opts.userIds)
+      : undefined,
+    columns: { userId: true },
+  });
+  const userIds = [...new Set(plans.map((p) => p.userId))];
+
+  const { rolloverWeekPlan } = await import("@/lib/week-plan/service");
+
+  let rolled = 0;
+  for (const userId of userIds) {
+    try {
+      if ((await rolloverWeekPlan(userId, now)) === "rolled") rolled++;
+    } catch (err) {
+      logger.error("week rollover failed", {
+        userId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  return rolled;
+}
+
 export async function runMorningBriefBackstop(
   now = new Date(),
   opts?: { userIds?: string[] }

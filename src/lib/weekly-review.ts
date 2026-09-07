@@ -79,6 +79,30 @@ export function mostRecentSlot(
   return slot;
 }
 
+/**
+ * The Monday of the week this review is about.
+ *
+ * Sunday is the only day that belongs to the week it closes. Every other day
+ * sits inside a week that is still running, so the most recent COMPLETE week
+ * is the previous one — which is why this was a flat `mondayOf(now) - 7` while
+ * the slot defaulted to Monday.
+ *
+ * Moving the slot to Sunday evening (so the athlete gets the week's story
+ * while it is still the week, and can plan the next one) breaks that
+ * assumption: on Sunday 2026-09-13 the flat formula reviews 2026-08-31..09-06,
+ * the week BEFORE the one that is ending. It would have been a full set of
+ * real figures describing the wrong seven days, which is the one failure this
+ * file's own window comment exists to prevent.
+ *
+ * Keyed on the SLOT rather than on `now`, so a review that fires late — the
+ * 09:00 backstop picking up a missed Sunday evening — still describes the week
+ * its slot belonged to.
+ */
+export function reviewWeekStartFor(slot: Date): string {
+  const monday = mondayOf(slot);
+  return slot.getDay() === 0 ? monday : addDaysYmd(monday, -7);
+}
+
 async function findOrCreateWeeklyThread(userId: string) {
   const existing = await db.query.chatThreads.findFirst({
     where: and(
@@ -125,7 +149,13 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
   const prefs = await db.query.notificationPrefs.findFirst({
     where: eq(schema.notificationPrefs.userId, userId),
   });
-  const reviewDay = prefs?.weeklyReviewDay ?? 1; // default Monday
+  // The OPERATIVE default is the column's own (notification_prefs.
+  // weekly_review_day, Sunday since migration 0049) — getOrCreatePrefs in
+  // push.ts writes a row for every user, so this `?? ` is the rowless path
+  // only, and it is deliberately NOT the product default: the hour beside it
+  // is FALLBACK_REVIEW_HOUR, which is shared with the monthly report and
+  // pinned to the 09:00 backstop rather than to the review's own evening.
+  const reviewDay = prefs?.weeklyReviewDay ?? 0;
   // FALLBACK_REVIEW_HOUR only applies when prefs is undefined (no row at
   // all) — see its own doc comment above for why that's rare in practice.
   const reviewHour = prefs?.weeklyReviewHour ?? FALLBACK_REVIEW_HOUR;
@@ -186,7 +216,7 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
   // deriveDayActuals already excludes Strava (Nov 2024 API agreement) and
   // already coalesces the local timestamp, so routing through it closes all
   // three problems at once.
-  const reviewWeekStart = addDaysYmd(mondayOf(now), -7);
+  const reviewWeekStart = reviewWeekStartFor(slot);
   const reviewWeekEnd = addDaysYmd(reviewWeekStart, 6);
   const prevWeekStart = addDaysYmd(reviewWeekStart, -7);
 
