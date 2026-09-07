@@ -67,10 +67,11 @@ import type { Band } from "@/lib/readiness";
 import { Figure } from "@/lib/uncertainty";
 import {
   addDaysYmd,
-  getOpenWeekPlan,
+  getCurrentWeekPlan,
   listAdjustments,
   planConstraints,
 } from "@/lib/week-plan/service";
+import { formatDayRange } from "@/lib/format";
 import { deriveDayActuals } from "@/lib/week-plan/actuals";
 import { openDayFrom } from "@/lib/week-plan/day-shape";
 import { verdictLine } from "@/lib/week-plan/verdict-line";
@@ -568,7 +569,9 @@ async function WeekTab({
     };
   }
 
-  const week = await getOpenWeekPlan(userId);
+  // getCurrentWeekPlan, not getOpenWeekPlan: a week that has ended must not
+  // render as this one. See its doc, and the 2026-09-07 report.
+  const week = await getCurrentWeekPlan(userId);
   const adjustments = week ? await listAdjustments(week.id) : [];
   const races = await listRaces(userId);
   // Per-day stage detail per race — a separate table, so one batched query
@@ -1019,6 +1022,12 @@ async function WeekTab({
   const subtitle = [
     plan.title,
     `week ${Math.min(plan.currentWeek, plan.weeksTotal)} of ${plan.weeksTotal}`,
+    // The actual days that week number stands for. "week 1 of 16" is a
+    // position in a skeleton; it never said WHICH SEVEN DAYS, and the athlete
+    // who found last week's grid under this week's heading had nothing on the
+    // page to tell them apart. Only rendered when there IS a current week —
+    // see getCurrentWeekPlan.
+    week ? formatDayRange(week.weekStart, addDaysYmd(week.weekStart, 6)) : null,
     openBlock?.phase ? `${openBlock.phase} phase` : null,
     planTargets.first
       ? `${planTargets.first.raceType} ${planTargets.first.date} → ${planTargets.final.raceType} ${planTargets.final.date}`

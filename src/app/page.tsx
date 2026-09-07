@@ -16,7 +16,7 @@ import { getLatestMorningInsight } from "@/lib/morning-insight";
 import { dayAdherence } from "@/lib/week-plan/day-adherence";
 import { plannedMins } from "@/lib/week-plan/fill";
 import {
-  getOpenWeekPlan,
+  getCurrentWeekPlan,
   listAdjustments,
   planConstraints,
 } from "@/lib/week-plan/service";
@@ -125,7 +125,14 @@ export default async function DashboardPage({
   const insight = await getLatestMorningInsight(user.id);
 
   // v0.9.2 living week — today's slot + latest adjustment, or nothing.
-  const weekPlan = await getOpenWeekPlan(user.id);
+  //
+  // getCurrentWeekPlan, not getOpenWeekPlan: a week that has ended is not
+  // this one. `todaySlot` below was already safe (it matches on the date, so a
+  // stale week simply has no row for today), but `otherDays` would have listed
+  // last week's days as the rest of this one. Passing the null through to
+  // raceCard is also right — it reads an explicit null as "no week" and
+  // declines to forecast, rather than projecting from a week already over.
+  const weekPlan = await getCurrentWeekPlan(user.id);
   const todayDate = new Date();
   const todayYmd = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
   const todaySlot = weekPlan?.days.find((d) => d.date === todayYmd) ?? null;

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
-import { mondayOf, addDaysYmd } from "@/lib/week-plan/service";
+import { addDaysYmd } from "@/lib/week-plan/service";
 import { mostRecentSlot, reviewWeekStartFor } from "@/lib/weekly-review";
 
 // No database: this pins the window arithmetic the review must use, which
