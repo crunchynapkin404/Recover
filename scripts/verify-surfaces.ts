@@ -339,11 +339,25 @@ const SURFACES: Record<string, string> = {
   // every gate green. Requires no extra seeding beyond seed-demo.ts — the
   // sheet renders for any athlete, with or without an active plan — but it
   // renders EMPTY without timed blocks to draw, and `seed-demo.ts` seeds no
-  // availability at all. Requires scripts/seed-availability.ts to have run;
-  // without it this photographs seven blank tracks and proves nothing about
-  // the pills, the energy fills, the notch counts or the 44px floor. The dev
-  // database's own `availability_defaults` rows are LEGACY (`start: null`),
-  // which the timeline declines to place, so they do not stand in for it.
+  // availability at all.
+  //
+  // THIS SAID IT REQUIRES scripts/seed-availability.ts, "without it this
+  // photographs seven blank tracks". No workflow has ever run that script, and
+  // the picture disagrees: checked 2026-09-07 against capture-main from the
+  // 2026-09-06 run on main, the sheet shows `7h 55m this week` over five days
+  // of `18:00-19:35 · 1h 35m` with their pills placed. The requirement is real
+  // and something else satisfies it — `generateTrainingPlan` seeds a standard
+  // week with real start/end times, which `training-plan.test.ts` pins ("seeds
+  // a standard week the drag-timeline can actually place"), and
+  // seed-confirmed-race runs the real previewTrainingPlan/confirmTrainingPlan.
+  // So the timed blocks arrive with the PLAN, not with a seed of their own.
+  //
+  // Left as a warning rather than deleted: drop the plan seeds and this
+  // surface goes back to seven blank tracks, and `sheetOpenGuard` would not
+  // notice — it asks whether a dialog appeared, which is the same false green
+  // `train-fuelling` was reporting until v0.138.0. The dev database's own
+  // `availability_defaults` rows are LEGACY (`start: null`), which the
+  // timeline declines to place, so they do not stand in for it.
   "train-availability": "/train?sheet=availability",
   // The Session fuelling sheet, DRIVEN onto a day that has a session — a
   // bare `/train` like `train-workout` above, not a URL carrying the sheet.
