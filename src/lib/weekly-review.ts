@@ -327,8 +327,42 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
       }
     : null;
 
+  // ── The week ahead ─────────────────────────────────────────────────────
+  //
+  // Leads the message, because it is the half the athlete can still act on.
+  // The review moved to Sunday evening for exactly this: what is coming is
+  // worth more the evening before it starts than it is on Wednesday.
+  //
+  // "Next" is the week AFTER the one under review, which lands correctly for
+  // either slot: from a Sunday slot the reviewed week is the one ending, so
+  // this is the week starting tomorrow; from a Monday slot the reviewed week
+  // is the one just closed, so this is the week the athlete is now in.
+  //
+  // projectWeek returns a forecast when no week_plans row exists yet — the
+  // normal Sunday case, since the rollover runs on Monday — and reads the real
+  // row once there is one. Best-effort: a review that cannot see next week is
+  // still worth sending, and this must never be the reason one is not.
+  const aheadWeekStart = addDaysYmd(reviewWeekStart, 7);
+  let aheadLine = "";
+  try {
+    const { projectWeek } = await import("@/lib/week-plan/project");
+    const { weekAheadSentence } = await import("@/lib/week-plan/week-ahead");
+    const ahead = await projectWeek(userId, aheadWeekStart, now);
+    if (ahead) {
+      aheadLine =
+        `🗓️ Next week: ${weekAheadSentence(ahead.days, ahead.target.hours)}` +
+        `${ahead.provisional ? " (provisional)" : ""}.\n`;
+    }
+  } catch (err) {
+    logger.warn("weekly review could not project the week ahead", {
+      userId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   // ── Generate review ────────────────────────────────────────────────────
   const templateText =
+    aheadLine +
     `📊 Week in review: ${Math.round(weekLoad)} load across ${sessions} sessions ` +
     `(${delta >= 0 ? "↑" : "↓"} ${Math.abs(delta)}% vs last week). ` +
     `Readiness averaged ${avgReadiness}. CTL ${ctl} (${ctlDelta >= 0 ? "+" : ""}${ctlDelta}).` +
@@ -368,8 +402,13 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
           ? `Plan adherence: ${planAdherence.adherencePct}% (target ${planAdherence.targetLoad}, actual ${planAdherence.actualLoad})\n`
           : "") +
         driftLine +
+        (aheadLine ? `\n## The Week Ahead\n${aheadLine}` : "") +
         `\n## Instructions\n` +
-        `- Lead with the headline: bigger/smaller/recovery week\n` +
+        (aheadLine
+          ? `- OPEN with the week ahead: it is what the athlete can still act on, and this arrives the evening before it starts\n` +
+            `- Quote its session count and hours as given; never restate them as your own estimate\n` +
+            `- Then the week just gone, briefly\n`
+          : `- Lead with the headline: bigger/smaller/recovery week\n`) +
         `- Comment on readiness trend and recovery quality\n` +
         `- End with one actionable suggestion for next week\n` +
         `- Keep it to 3-4 sentences. Plain text only — no tool calls, no charts.`;

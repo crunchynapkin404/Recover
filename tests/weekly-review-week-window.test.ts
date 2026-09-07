@@ -356,6 +356,45 @@ describe.skipIf(!hasDb)("review and rollover agree on the week", () => {
     expect(messageLoad).toBe(250);
   });
 
+  it("opens with the week ahead, before the week just gone", async () => {
+    // The reason the review moved to Sunday evening: what is coming is worth
+    // more the evening before it starts than it is on Wednesday. The
+    // retrospective still follows it, so nothing was traded away for that.
+    await seedGuardFillers();
+    await addActivity({
+      externalId: `${USER}-ahead`,
+      ymd: weekStart,
+      load: 90,
+    });
+
+    const { db, schema } = await import("@/lib/db");
+    const { generateWeeklyReview } = await import("@/lib/weekly-review");
+    await generateWeeklyReview(USER);
+
+    const thread = await db.query.chatThreads.findFirst({
+      where: and(
+        eq(schema.chatThreads.userId, USER),
+        eq(schema.chatThreads.kind, "weekly")
+      ),
+    });
+    const msg = await db.query.chatMessages.findFirst({
+      where: eq(schema.chatMessages.threadId, thread!.id),
+    });
+    expect(msg).toBeDefined();
+
+    const ahead = msg!.content.indexOf("Next week:");
+    const behind = msg!.content.indexOf("Week in review:");
+    expect(ahead, "the week ahead is missing from the review").toBeGreaterThan(
+      -1
+    );
+    expect(
+      behind,
+      "the retrospective is missing from the review"
+    ).toBeGreaterThan(-1);
+    // Order, not just presence: "next week first, last week after".
+    expect(ahead).toBeLessThan(behind);
+  });
+
   it("never counts a Strava-sourced activity in either number", async () => {
     await seedGuardFillers();
     // One legitimate activity plus one Strava-sourced activity in the same

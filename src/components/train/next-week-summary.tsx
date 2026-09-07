@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { DaySlot } from "@/lib/week-plan/types";
-import { plannedMins } from "@/lib/week-plan/fill";
+import { weekAheadFigures } from "@/lib/week-plan/week-ahead";
 import { fmt } from "@/components/week/week-rationale";
 
 /**
@@ -76,13 +76,11 @@ export function NextWeekSummary({
   availabilityHref: string;
   children: React.ReactNode;
 }) {
-  const sessions = days.filter((d) => d.workouts.length > 0).length;
-  // "Open" is a day the calendar offers time on that has nothing planned —
-  // the actionable half of the summary, and the reason to tap through.
-  const open = days.filter(
-    (d) => d.workouts.length === 0 && d.availableMins > 0
-  ).length;
-  const plannedHours = plannedMins(days) / 60;
+  // Derived by week-ahead.ts, not here: the Sunday review says this same
+  // sentence in plain text, and two derivations of one figure is how two
+  // surfaces come to disagree about the athlete's own week.
+  const { sessions, open, plannedMins: mins } = weekAheadFigures(days);
+  const plannedHours = mins / 60;
   const provisional = days.some((d) => !pinned[d.date]);
 
   return (
