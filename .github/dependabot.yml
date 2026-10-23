@@ -1,0 +1,51 @@
+version: 2
+updates:
+  # Minors and patches arrive together in one pull request; majors fall outside
+  # the group and arrive one per pull request, so each can be judged on its own.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      npm:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      # The types follow the Node runtime (node:22-alpine in the Dockerfile).
+      - dependency-name: "@types/node"
+        versions: [">=23"]
+      # typescript-eslint (through eslint-config-next) supports TypeScript < 6.1.
+      - dependency-name: "typescript"
+        versions: [">=6.1"]
+  # Images: minors and patches. A Node or PostgreSQL major is a deliberate step
+  # (the latter needs a dump and restore).
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      images:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      compose-images:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # Recover's own image moves through the release path (docs/RELEASING.md).
+      - dependency-name: "ghcr.io/crunchynapkin404/recover"
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
