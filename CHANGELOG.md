@@ -1,5 +1,53 @@
 # Changelog
 
+## v0.140.1 — 2026-10-23 — Security updates
+
+### What you will notice
+
+Nothing. This release changes no behavior; it closes known vulnerabilities in
+dependencies. `npm audit --omit=dev` went from 2 critical, 18 high and 12
+moderate to 0 critical, 0 high and 5 moderate.
+
+### Under the hood
+
+**Next.js 16.2.10 → 16.4.2.** 16.2.10 sits inside the range of two critical
+advisories for self-hosted apps: server-side request forgery in image
+optimization, and cache poisoning of SSG/ISR pages. Prod is reachable through
+the tunnel, so both applied. `eslint-config-next` moves with it; both stay
+pinned exactly.
+
+**Targeted lockfile updates, within the declared ranges.** `proxy-addr`
+(critical: IP spoofing via an IPv4-mapped IPv6 address in a trust subnet,
+reached through express in the MCP SDK), `@modelcontextprotocol/sdk` 1.29.0 →
+1.32.1 (session binding of experimental tasks, OAuth server choice, memory
+exhaustion in validation), `vitest` 4.1.10 → 4.1.12 (path traversal through
+`@vitest/mocker`), and the transitive `undici`, `sharp`, `postcss`, `hono`,
+`qs`, `nanoid`, `js-yaml`, `vite` and others. `zod`, `better-auth` and `shadcn`
+are deliberately unchanged: a broad `npm audit fix` also moved `better-auth`
+to 1.7 and `zod` to 4.6, and zod 4.6 writes a string-or-number union as a
+type array, which changes the MCP tool schemas (`frozen-tools.test.ts`).
+
+**`shadcn` moves to devDependencies.** It is a CLI; the app only imports its
+stylesheet, which Tailwind inlines at build time, and the runtime image carries
+the standalone output only. Its dependency chain (`fast-glob` → `micromatch` →
+`braces`) has a high advisory with no fixed release yet (`braces` 3.0.3 is the
+newest and still in range), so it now counts under dev tooling, together with
+the same chain under `eslint-config-next`.
+
+**What is left:** five moderate findings through `drizzle-kit` → `esbuild`. The
+advisory concerns esbuild's development server, which nothing here runs; npm's
+only offer is a downgrade to drizzle-kit 0.18.1.
+
+**Lockfile notes.** Two `lightningcss` versions now live side by side:
+`@tailwindcss/node` pins 1.32.0 exactly, and vite 8.3.5 needs ^1.33.0. `npm ls`
+reports the hoisted platform binary of the other version as invalid; `npm ci`
+on `node:22-alpine` installs the right binary for each (checked). `npm update`
+crashes on npm 10 in arborist's peer-set loader (`Cannot read properties of
+null (reading 'edgesOut')`), so the targeted updates ran on npm 11; the result
+installs with `npm ci` on npm 10, which CI uses.
+
+Migrations: none.
+
 ## v0.140.0 — 2026-09-07 — Monday is Monday
 
 ### What you will notice
