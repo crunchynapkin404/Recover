@@ -34,6 +34,9 @@ export const auth = betterAuth({
   // Brute-force protection. In-memory store is fine for this single-instance
   // deploy (counters reset on restart — acceptable; the tunnel + invite-only
   // model already blunts mass attacks). window in seconds, max requests/window.
+  // /sign-in/* is stricter than this: Better Auth's built-in rule allows 3
+  // attempts per 10 s per client IP there, and that rule is what
+  // tests/auth-hooks.test.ts pins.
   rateLimit: {
     enabled: true,
     window: 60,
@@ -57,10 +60,11 @@ export const auth = betterAuth({
       },
     },
   },
-  // Verified against the installed better-auth 1.6.23 (dispatch.mjs): a
-  // thrown APIError from the endpoint handler is caught and assigned to
-  // `ctx.context.returned` before this after-hook runs, so `instanceof
-  // Error` reliably detects a failed /sign-in/email call.
+  // Verified against the installed better-auth 1.7.14 (api/dispatch.mjs),
+  // as it was against 1.6.23: a thrown APIError from the endpoint handler is
+  // caught and assigned to `ctx.context.returned` before this after-hook
+  // runs, so `instanceof Error` reliably detects a failed /sign-in/email
+  // call. tests/auth-hooks.test.ts fails if that stops being true.
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
       if (
@@ -68,8 +72,8 @@ export const auth = betterAuth({
         ctx.context.returned instanceof Error
       ) {
         const { recordAuditEvent } = await import("@/lib/audit");
-        // Verified against the installed better-auth 1.6.23
-        // (api/routes/sign-in.mjs): the /sign-in/email body schema is
+        // Verified against the installed better-auth 1.7.14, unchanged from
+        // 1.6.23 (api/routes/sign-in.mjs): the /sign-in/email body schema is
         // `{ email, password, callbackURL?, rememberMe? }`, and the
         // attempted email — not a secret, per the audit spec — is the
         // useful forensic detail here.

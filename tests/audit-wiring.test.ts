@@ -19,8 +19,8 @@ import { and, eq } from "drizzle-orm";
  * test.
  *
  * The Better Auth session hook (login_success/login_fail) has no server
- * action to drive here and is covered by manual verification instead (see
- * task-6-brief.md Step 6).
+ * action to drive here; tests/auth-hooks.test.ts covers it through the real
+ * sign-in handler.
  */
 
 const hasDb =

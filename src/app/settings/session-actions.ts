@@ -22,7 +22,8 @@ export interface SessionActionResult {
  * "not found" and the call never reaches Better Auth.
  *
  * This is deliberately stricter than relying solely on Better Auth's own
- * guard. Verified against the installed better-auth 1.6.23 source
+ * guard. Verified against the installed better-auth 1.7.14 source, unchanged
+ * from 1.6.23
  * (node_modules/better-auth/dist/api/routes/session.mjs, `/revoke-session`
  * handler): it DOES check
  * `(await ctx.context.internalAdapter.findSession(token))?.session.userId
@@ -86,9 +87,10 @@ export async function revokeSession(
  *   - explicitly filters out the caller's own current session token before
  *     deleting anything:
  *       `.filter((session) => session.token !== ctx.context.session.session.token)`
- *     (node_modules/better-auth/dist/api/routes/session.mjs, lines ~498-501
- *     of the installed 1.6.23 build) — i.e. the "keeps you signed in"
- *     guarantee is enforced by Better Auth itself, not by this wrapper.
+ *     (node_modules/better-auth/dist/api/routes/session.mjs, lines ~474-477
+ *     of the installed 1.7.14 build; same code in 1.6.23) — i.e. the
+ *     "keeps you signed in" guarantee is enforced by Better Auth itself,
+ *     not by this wrapper.
  */
 export async function signOutOtherSessions(): Promise<SessionActionResult> {
   const { user } = await requireSession();
