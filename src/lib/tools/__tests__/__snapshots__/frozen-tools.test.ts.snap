@@ -1663,13 +1663,9 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
                 "type": "string",
               },
               "x": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                  },
-                  {
-                    "type": "number",
-                  },
+                "type": [
+                  "string",
+                  "number",
                 ],
               },
             },
@@ -1695,13 +1691,9 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
                   "additionalProperties": false,
                   "properties": {
                     "x": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                        },
-                        {
-                          "type": "number",
-                        },
+                      "type": [
+                        "string",
+                        "number",
                       ],
                     },
                     "y": {
