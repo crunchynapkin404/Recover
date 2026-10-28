@@ -51,6 +51,8 @@ Migrations: none.
 
 ## v0.140.2 — 2026-10-28 — Security updates, second round
 
+Not released on its own: it reached production as part of v0.140.3.
+
 ### What you will notice
 
 Nothing. This release changes no behavior; it closes advisories published
