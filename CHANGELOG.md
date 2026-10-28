@@ -1,5 +1,52 @@
 # Changelog
 
+## v0.140.2 — 2026-10-28 — Security updates, second round
+
+### What you will notice
+
+Nothing. This release changes no behavior; it closes advisories published
+after v0.140.1. `npm audit --omit=dev` went from 1 critical and 2 high to
+1 critical and 0 high; the remaining critical is `better-auth`, explained below.
+
+### Under the hood
+
+**`zod` 4.4.3 → 4.6.7.** Closes GHSA-mrhx-c7xc-m3w5 (memory exhaustion while
+validating oversized constrained collections; fixed in 4.6.6). This is the
+change v0.140.1 held back, because zod 4.6 serializes a string-or-number
+union differently. It touches exactly one MCP tool, `render_chart`, in two
+places: `x` was `{"anyOf":[{"type":"string"},{"type":"number"}]}` and is now
+`{"type":["string","number"]}`. Both accept exactly the same values, so no
+existing tool call changes meaning; the frozen snapshot is updated on purpose
+(docs/API-STABILITY.md). The only zod left below 4.6.6 is the one `shadcn`
+bundles, a dev-only CLI that is not in the image.
+
+**`body-parser` 2.3.0 → 2.4.0** (with `content-type` 2.0.0 → 2.1.0), a lockfile
+update within express's range. Closes GHSA-27r3-jxmh-p828 (denial of service
+via trailing bytes after a compressed request body).
+
+**`better-auth` stays on 1.6.23, on purpose.** Its open advisories are fixed
+only in 1.7.7, and none of them reaches this app:
+
+- GHSA-965c-763c-88jm (critical, OAuth state used as a magic link) needs the
+  magic-link plugin or an OAuth sign-in. Recover signs in with email and
+  password only: no social providers, no plugins besides `nextCookies()`.
+- GHSA-r4xp-prcw-77qf (OAuth proxy) and GHSA-q84f-53jg-9ppm (device login)
+  need plugins Recover does not load.
+- GHSA-44jh-23m7-hpcf (rate limit on PostgreSQL) applies to database-backed
+  rate-limit storage; Recover's limiter uses the default in-memory store.
+
+Moving to 1.7 needs no migration: the 1.7 upgrade guide states that the
+account schema is unchanged from 1.6 (the `issuer` column that 1.7.0's notes
+announce was removed again in 1.7.3), and the core table definitions of 1.6.23
+and 1.7.7 differ only in comments (checked). It is still a minor version with
+behavior changes this app touches — the Drizzle adapter now throws on an
+unexpected affected-row count, the cookie cache is bound to the session token,
+the rate-limit storage contract changed — and the auth hooks here carry
+comments verified against 1.6.23 specifically. It gets its own pull request
+and its own verification rather than riding along with this patch.
+
+Migrations: none.
+
 ## v0.140.1 — 2026-10-23 — Security updates
 
 ### What you will notice
