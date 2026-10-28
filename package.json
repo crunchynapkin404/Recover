@@ -1,6 +1,6 @@
 {
   "name": "recover",
-  "version": "0.140.2",
+  "version": "0.140.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -30,7 +30,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@neondatabase/serverless": "^1.1.0",
     "ai": "^7.0.26",
-    "better-auth": "^1.6.23",
+    "better-auth": "^1.7.14",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",

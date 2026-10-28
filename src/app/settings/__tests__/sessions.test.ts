@@ -249,7 +249,8 @@ describe.skipIf(!hasDb)("session-management actions", () => {
       // No id/token argument is passed — revokeOtherSessions only accepts
       // { headers }, confirming (together with the source citation in
       // session-actions.ts) that it cannot be pointed at another user's
-      // sessions and, per the installed better-auth 1.6.23 source, itself
+      // sessions and, per the installed better-auth 1.7.14 source (as in
+      // 1.6.23), itself
       // filters out the caller's own current session token before
       // deleting anything — that's what keeps "this device" alive.
       const callArgs = revokeOtherSessionsApiMock.mock.calls[0][0];

@@ -1,5 +1,54 @@
 # Changelog
 
+## v0.140.3 — 2026-10-28 — Better Auth 1.7
+
+### What you will notice
+
+Nothing. Sign-in, sessions and the settings page's session list work as
+before. `npm audit --omit=dev` now reports 0 critical and 0 high; what is left
+is the four moderate findings through `drizzle-kit` → `esbuild` described
+under v0.140.1.
+
+### Under the hood
+
+**`better-auth` 1.6.23 → 1.7.14.** Closes GHSA-965c-763c-88jm, GHSA-r4xp-prcw-77qf,
+GHSA-q84f-53jg-9ppm and GHSA-44jh-23m7-hpcf. None of them reached this app
+(v0.140.2 explains why); the point is to stay on the line that receives
+fixes.
+
+No migration. The 1.7 upgrade guide states the account schema is unchanged
+from 1.6 — the `issuer` column announced in 1.7.0 was dropped again in 1.7.3 —
+and the core table definitions of the two versions differ only in comments.
+
+What was checked against the 1.7.14 source, because code here depends on it:
+
+- A thrown `APIError` still lands in `ctx.context.returned` before the
+  after-hook runs, and `APIError` is still an `Error` — the `login_fail`
+  audit depends on both. The `/sign-in/email` body is unchanged.
+- `/list-sessions` is still behind the freshness gate, `/revoke-session`
+  still silently skips a foreign token, and `/revoke-other-sessions` still
+  keeps the caller's own session: the three handlers and
+  `sensitiveSessionMiddleware` are byte-identical to 1.6.23.
+- The limiter's client-IP rules (one-value `X-Forwarded-For` unless
+  `trustedProxies` is set, shared bucket otherwise) and the built-in
+  `/sign-in/*` rule of 3 attempts per 10 s are unchanged.
+- The Drizzle adapter now throws when a driver reports no affected-row count;
+  node-postgres and Neon both report `rowCount`, so neither path changes.
+
+The comments that cited 1.6.23 now cite 1.7.14.
+
+**New test: `tests/auth-hooks.test.ts`.** Until now the sign-in audit hooks
+were covered by manual verification only. The new file drives the real
+Better Auth handler: a wrong password returns 401 and records `login_fail`
+with the attempted email; the right one returns 200, sets the session cookie
+and records `login_success` for that user with the client IP; and the fourth
+attempt from one address within ten seconds gets 429 without reaching the
+endpoint. It passes on 1.6.23 and on 1.7.14. Mutation-checked three ways —
+the fail hook pointed at another path, the success hook writing the wrong
+event, the limiter disabled — and each turns it red.
+
+Migrations: none.
+
 ## v0.140.2 — 2026-10-28 — Security updates, second round
 
 ### What you will notice
