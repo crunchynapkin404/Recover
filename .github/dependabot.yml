@@ -41,7 +41,8 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
       # Recover's own image moves through the release path (docs/RELEASING.md).
-      - dependency-name: "ghcr.io/crunchynapkin404/recover"
+      # Dependabot names it without the registry ("crunchynapkin404/recover"), so match both.
+      - dependency-name: "*crunchynapkin404/recover"
   - package-ecosystem: github-actions
     directory: /
     schedule:
