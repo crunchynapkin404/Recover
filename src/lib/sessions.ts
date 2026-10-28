@@ -21,7 +21,7 @@ export interface SessionRow {
  * Auth's `/list-sessions` endpoint (`auth.api.listSessions`).
  *
  * Why not `auth.api.listSessions`: verified against the installed
- * better-auth 1.6.23 source
+ * better-auth 1.7.14 source, unchanged from 1.6.23
  * (node_modules/better-auth/dist/api/routes/session.mjs) that endpoint is
  * gated by `freshSessionMiddleware`, which throws a
  * FORBIDDEN/SESSION_NOT_FRESH error whenever the CALLING session's

@@ -1,5 +1,103 @@
 # Changelog
 
+## v0.140.3 — 2026-10-28 — Better Auth 1.7
+
+### What you will notice
+
+Nothing. Sign-in, sessions and the settings page's session list work as
+before. `npm audit --omit=dev` now reports 0 critical and 0 high; what is left
+is the four moderate findings through `drizzle-kit` → `esbuild` described
+under v0.140.1.
+
+### Under the hood
+
+**`better-auth` 1.6.23 → 1.7.14.** Closes GHSA-965c-763c-88jm, GHSA-r4xp-prcw-77qf,
+GHSA-q84f-53jg-9ppm and GHSA-44jh-23m7-hpcf. None of them reached this app
+(v0.140.2 explains why); the point is to stay on the line that receives
+fixes.
+
+No migration. The 1.7 upgrade guide states the account schema is unchanged
+from 1.6 — the `issuer` column announced in 1.7.0 was dropped again in 1.7.3 —
+and the core table definitions of the two versions differ only in comments.
+
+What was checked against the 1.7.14 source, because code here depends on it:
+
+- A thrown `APIError` still lands in `ctx.context.returned` before the
+  after-hook runs, and `APIError` is still an `Error` — the `login_fail`
+  audit depends on both. The `/sign-in/email` body is unchanged.
+- `/list-sessions` is still behind the freshness gate, `/revoke-session`
+  still silently skips a foreign token, and `/revoke-other-sessions` still
+  keeps the caller's own session: the three handlers and
+  `sensitiveSessionMiddleware` are byte-identical to 1.6.23.
+- The limiter's client-IP rules (one-value `X-Forwarded-For` unless
+  `trustedProxies` is set, shared bucket otherwise) and the built-in
+  `/sign-in/*` rule of 3 attempts per 10 s are unchanged.
+- The Drizzle adapter now throws when a driver reports no affected-row count;
+  node-postgres and Neon both report `rowCount`, so neither path changes.
+
+The comments that cited 1.6.23 now cite 1.7.14.
+
+**New test: `tests/auth-hooks.test.ts`.** Until now the sign-in audit hooks
+were covered by manual verification only. The new file drives the real
+Better Auth handler: a wrong password returns 401 and records `login_fail`
+with the attempted email; the right one returns 200, sets the session cookie
+and records `login_success` for that user with the client IP; and the fourth
+attempt from one address within ten seconds gets 429 without reaching the
+endpoint. It passes on 1.6.23 and on 1.7.14. Mutation-checked three ways —
+the fail hook pointed at another path, the success hook writing the wrong
+event, the limiter disabled — and each turns it red.
+
+Migrations: none.
+
+## v0.140.2 — 2026-10-28 — Security updates, second round
+
+Not released on its own: it reached production as part of v0.140.3.
+
+### What you will notice
+
+Nothing. This release changes no behavior; it closes advisories published
+after v0.140.1. `npm audit --omit=dev` went from 1 critical and 2 high to
+1 critical and 0 high; the remaining critical is `better-auth`, explained below.
+
+### Under the hood
+
+**`zod` 4.4.3 → 4.6.7.** Closes GHSA-mrhx-c7xc-m3w5 (memory exhaustion while
+validating oversized constrained collections; fixed in 4.6.6). This is the
+change v0.140.1 held back, because zod 4.6 serializes a string-or-number
+union differently. It touches exactly one MCP tool, `render_chart`, in two
+places: `x` was `{"anyOf":[{"type":"string"},{"type":"number"}]}` and is now
+`{"type":["string","number"]}`. Both accept exactly the same values, so no
+existing tool call changes meaning; the frozen snapshot is updated on purpose
+(docs/API-STABILITY.md). The only zod left below 4.6.6 is the one `shadcn`
+bundles, a dev-only CLI that is not in the image.
+
+**`body-parser` 2.3.0 → 2.4.0** (with `content-type` 2.0.0 → 2.1.0), a lockfile
+update within express's range. Closes GHSA-27r3-jxmh-p828 (denial of service
+via trailing bytes after a compressed request body).
+
+**`better-auth` stays on 1.6.23, on purpose.** Its open advisories are fixed
+only in 1.7.7, and none of them reaches this app:
+
+- GHSA-965c-763c-88jm (critical, OAuth state used as a magic link) needs the
+  magic-link plugin or an OAuth sign-in. Recover signs in with email and
+  password only: no social providers, no plugins besides `nextCookies()`.
+- GHSA-r4xp-prcw-77qf (OAuth proxy) and GHSA-q84f-53jg-9ppm (device login)
+  need plugins Recover does not load.
+- GHSA-44jh-23m7-hpcf (rate limit on PostgreSQL) applies to database-backed
+  rate-limit storage; Recover's limiter uses the default in-memory store.
+
+Moving to 1.7 needs no migration: the 1.7 upgrade guide states that the
+account schema is unchanged from 1.6 (the `issuer` column that 1.7.0's notes
+announce was removed again in 1.7.3), and the core table definitions of 1.6.23
+and 1.7.7 differ only in comments (checked). It is still a minor version with
+behavior changes this app touches — the Drizzle adapter now throws on an
+unexpected affected-row count, the cookie cache is bound to the session token,
+the rate-limit storage contract changed — and the auth hooks here carry
+comments verified against 1.6.23 specifically. It gets its own pull request
+and its own verification rather than riding along with this patch.
+
+Migrations: none.
+
 ## v0.140.1 — 2026-10-23 — Security updates
 
 ### What you will notice
