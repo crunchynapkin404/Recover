@@ -369,7 +369,13 @@ export function ChatInterface({
               )}
               <Link
                 href={historyHref}
-                aria-label="History and inbox"
+                // Contains what the link shows ("History · 3"), WCAG 2.5.3
+                // Label in Name, so a speech user can say what they see.
+                aria-label={
+                  unread > 0
+                    ? `History, ${unread} unread, and inbox`
+                    : "History and inbox"
+                }
                 className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2.5 text-label font-bold uppercase tracking-wider text-ink-secondary"
               >
                 <History className="size-3.5" aria-hidden />

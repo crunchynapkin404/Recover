@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { renderToString } from "react-dom/server";
@@ -59,6 +60,7 @@ vi.mock("@ai-sdk/react", () => ({
 }));
 
 import { ChatInterface } from "./chat-interface";
+import { labelInName } from "@/test/label-in-name";
 
 const base = {
   configured: true,
@@ -71,6 +73,21 @@ const base = {
 beforeEach(resetChatState);
 
 describe("ChatInterface", () => {
+  // WCAG 2.5.3, Label in Name: the history link shows "History · 3", so its
+  // name has to contain that, not only "History and inbox".
+  it.each([0, 3])(
+    "puts the history link's visible label inside its name (unread %i)",
+    (unread) => {
+      const host = document.createElement("div");
+      host.innerHTML = renderToString(
+        <ChatInterface {...base} unread={unread} />
+      );
+      const link = host.querySelector('a[href*="history=1"]');
+      expect(link).not.toBeNull();
+      expect(labelInName(link!)).toMatchObject({ ok: true });
+    }
+  );
+
   it("shows the configure card when no LLM key is set", () => {
     const html = renderToString(<ChatInterface {...base} configured={false} />);
     expect(html).toContain("needs an LLM key");
@@ -171,10 +188,9 @@ describe("ChatInterface source invariants", () => {
     // The old markup called new Date() inside messages.map, so every bubble
     // showed the clock at render. Nothing in the client transport carries a
     // per-message time, so the honest rendering is none at all.
-    const src = readFileSync(
-      new URL("./chat-interface.tsx", import.meta.url),
-      "utf8"
-    );
+    // Repo-relative, like week-strip.test.tsx: under jsdom import.meta.url is
+    // not a file: URL.
+    const src = readFileSync("src/components/coach/chat-interface.tsx", "utf8");
     expect(src).not.toMatch(/new Date\(\)\.toLocaleTimeString/);
   });
 });

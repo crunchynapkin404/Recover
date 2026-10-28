@@ -98,31 +98,36 @@ export function SyncChip({
     }
   }
 
+  // The name starts with the status the button shows and ends with what it
+  // does (WCAG 2.5.3, Label in Name): a speech user can say what they see,
+  // and a screen reader still hears that it syncs.
   if (variant === "microLabel") {
+    const text = `${datePrefix ? `${datePrefix} · ` : ""}${
+      busy ? "SYNCING…" : `SYNCED ${mounted ? relativeCompact(last) : "…"}`
+    }`;
     return (
       <button
         onClick={syncNow}
         disabled={busy}
-        aria-label="Sync now"
+        aria-label={`${text}, sync now`}
         className="text-left text-label font-bold uppercase tracking-[0.14em] text-ink-muted transition-colors hover:text-ink-secondary"
       >
-        {datePrefix ? `${datePrefix} · ` : ""}
-        {busy ? "SYNCING…" : `SYNCED ${mounted ? relativeCompact(last) : "…"}`}
+        {text}
       </button>
     );
   }
+
+  const status = busy ? "Syncing…" : `Synced ${mounted ? relative(last) : "…"}`;
 
   return (
     <button
       onClick={syncNow}
       disabled={busy}
-      aria-label="Sync now"
+      aria-label={`${status}, sync now`}
       className="flex items-center gap-2 rounded-full border border-hairline px-3 py-1.5 text-label font-bold uppercase tracking-widest text-ink-muted transition-colors hover:text-ink-secondary"
     >
       <RefreshCw className={`size-3 ${busy ? "animate-spin" : ""}`} />
-      <span>
-        {busy ? "Syncing…" : `Synced ${mounted ? relative(last) : "…"}`}
-      </span>
+      <span>{status}</span>
     </button>
   );
 }

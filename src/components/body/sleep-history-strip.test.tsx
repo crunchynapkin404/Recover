@@ -1,5 +1,7 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
+import { labelInName } from "@/test/label-in-name";
 import { SleepHistoryStrip, type StripNight } from "./sleep-history-strip";
 
 function night(date: string, withStages = true): StripNight {
@@ -66,6 +68,25 @@ describe("SleepHistoryStrip", () => {
     );
     expect(html).toContain("2026-08-01, no stage data");
     expect(html).toContain("2026-07-31");
+  });
+
+  // WCAG 2.5.3, Label in Name: each night shows a weekday initial over a day
+  // number, and its accessible name has to contain that, in that order.
+  it("puts each night's visible label inside its accessible name", () => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToString(
+      <SleepHistoryStrip
+        nights={[night("2026-07-31"), night("2026-08-01", false)]}
+        selectedDate="2026-08-01"
+        href={href}
+      />
+    );
+    const links = Array.from(host.querySelectorAll("a"));
+    expect(links).toHaveLength(2);
+    for (const a of links) {
+      expect(labelInName(a)).toMatchObject({ ok: true });
+    }
+    expect(labelInName(links[0]).name).toBe("S 01, 2026-08-01, no stage data");
   });
 
   it("links every night through the supplied href builder", () => {

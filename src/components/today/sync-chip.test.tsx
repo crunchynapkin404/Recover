@@ -8,6 +8,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { SyncChip } from "./sync-chip";
+import { labelInName } from "@/test/label-in-name";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -48,4 +49,35 @@ describe("SyncChip", () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  // WCAG 2.5.3, Label in Name: the button shows its status ("Synced 2h ago"),
+  // so its name has to contain that text, not only the action.
+  it.each([
+    ["chip", {}],
+    [
+      "microLabel",
+      { variant: "microLabel" as const, datePrefix: "Wed Oct 28" },
+    ],
+  ])(
+    "puts the visible status inside the %s button's accessible name",
+    (_v, props) => {
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+
+      let root: Root;
+      act(() => {
+        root = createRoot(container);
+        root.render(
+          <SyncChip lastSyncAt={new Date().toISOString()} {...props} />
+        );
+      });
+
+      const button = container.querySelector("button")!;
+      expect(labelInName(button)).toMatchObject({ ok: true });
+      expect(labelInName(button).name).toMatch(/sync now$/i);
+
+      act(() => root.unmount());
+      container.remove();
+    }
+  );
 });

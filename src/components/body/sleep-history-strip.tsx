@@ -75,7 +75,9 @@ export function SleepHistoryStrip({ nights, selectedDate, href }: Props) {
               <Link
                 href={href(n.date)}
                 aria-current={isSelected ? "date" : undefined}
-                aria-label={`${n.date}${hasStages ? "" : ", no stage data"}`}
+                // Starts with what the cell shows ("S 01"), WCAG 2.5.3 Label in
+                // Name, so a speech user can say what they see.
+                aria-label={`${weekdayLabel(n.date)} ${dayLabel(n.date)}, ${n.date}${hasStages ? "" : ", no stage data"}`}
                 className={`flex w-9 flex-col items-center gap-1 rounded-[9px] border px-1 py-1.5 transition-colors ${
                   isSelected
                     ? "border-ink-muted bg-surface-overlay"
@@ -85,6 +87,9 @@ export function SleepHistoryStrip({ nights, selectedDate, href }: Props) {
                 <span className="text-label font-bold uppercase tracking-wider text-ink-muted">
                   {weekdayLabel(n.date)}
                 </span>
+                {/* A real space between the two labels: invisible in the
+                    column layout, but without it the visible text reads as
+                    one word ("S01") to checks of the name against it. */}{" "}
                 <span
                   className={`text-label font-bold ${
                     isSelected ? "text-ink-primary" : "text-ink-secondary"

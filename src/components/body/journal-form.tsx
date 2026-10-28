@@ -217,10 +217,10 @@ export function JournalForm({
     d.setDate(d.getDate() - (4 - i));
     return {
       ymd: localYmd(d),
+      // The month, not "Oct 24": the day number sits in the circle below,
+      // and repeating it made the button read "Oct 24 24".
       label:
-        i === 4
-          ? "Today"
-          : d.toLocaleDateString("en-US", { month: "short", day: "2-digit" }),
+        i === 4 ? "Today" : d.toLocaleDateString("en-US", { month: "short" }),
       day: d.getDate(),
     };
   });
@@ -241,7 +241,9 @@ export function JournalForm({
               type="button"
               onClick={() => switchDay(d.ymd)}
               aria-pressed={active}
-              aria-label={`Log for ${d.label}${hasEntry ? " (logged)" : ""}`}
+              // Contains what the button shows ("Oct" over "24"), WCAG 2.5.3
+              // Label in Name, so a speech user can say what they see.
+              aria-label={`Log for ${d.label} ${d.day}${hasEntry ? " (logged)" : ""}`}
               className="flex min-w-[48px] flex-col items-center gap-2"
             >
               <span
@@ -249,6 +251,9 @@ export function JournalForm({
               >
                 {d.label}
               </span>
+              {/* A real space between label and number: invisible in the
+                  column layout, but without it the visible text reads as one
+                  word ("Oct24") to checks of the name against it. */}{" "}
               <div
                 className={`glass relative flex h-10 w-10 items-center justify-center rounded-full text-label font-bold ${
                   active
