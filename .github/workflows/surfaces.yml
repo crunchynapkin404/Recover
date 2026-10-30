@@ -130,7 +130,7 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
       - name: Cache Chromium
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ms-playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
@@ -216,7 +216,7 @@ jobs:
 
       - name: Upload the capture
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: capture-main
           path: .screenshots/capture-main
@@ -256,7 +256,7 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
       - name: Cache Chromium
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ms-playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
@@ -368,7 +368,7 @@ jobs:
 
       - name: Upload the capture
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: capture-preview-states
           path: .screenshots/capture-preview
@@ -432,7 +432,7 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
       - name: Cache Chromium
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ms-playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
@@ -483,7 +483,7 @@ jobs:
 
       - name: Upload the capture
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: capture-first-run
           path: .screenshots/capture-first-run
@@ -533,7 +533,7 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
       - name: Cache Chromium
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ms-playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
@@ -583,7 +583,7 @@ jobs:
 
       - name: Upload the capture
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: capture-cycling
           path: .screenshots/capture-cycling
@@ -602,22 +602,22 @@ jobs:
           cache: npm
       - run: npm ci
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: capture-main
           path: .screenshots/capture-main
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: capture-preview-states
           path: .screenshots/capture-preview
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: capture-first-run
           path: .screenshots/capture-first-run
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: capture-cycling
           path: .screenshots/capture-cycling
