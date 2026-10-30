@@ -175,7 +175,7 @@ jobs:
       # — a run id alone could name a capture of something else entirely.
       - name: Publish the capture
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: soak-capture-${{ inputs.rc_tag }}
           path: .screenshots/soak
