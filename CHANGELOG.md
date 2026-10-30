@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.141.0 — 2026-10-28 — Say what you see
+
+### What you will notice
+
+- **Journal, the day picker:** the small label over each past day shows the
+  month ("OCT") instead of "OCT 24". The day number was already in the circle
+  below it; the label repeated it.
+- **Speech input and screen readers:** six controls now carry a name that
+  starts with, or contains, what they show (WCAG 2.5.3, Label in Name), so
+  "click Mo" or "click Export" reaches them. Screen readers hear a little more:
+  "Mo, Monday, rest" instead of "Monday, rest".
+
+Nothing else changes for an athlete.
+
+### Under the hood
+
+**Label in Name.** axe-core 4.13 → 4.14 turns `label-content-name-mismatch` on
+by default, and it found 160 nodes in the surface capture, all one pattern: a
+control whose `aria-label` did not contain its visible text. Fixed where each
+one lives:
+
+| Control                         | Shows                     | Name now                          |
+| ------------------------------- | ------------------------- | --------------------------------- |
+| Train week strip (link)         | `Mo`                      | `Mo, Monday, rest`                |
+| Sleep history strip             | `S` over `01`             | `S 01, 2026-08-01, no stage data` |
+| Journal day buttons             | `Oct` over `24`           | `Log for Oct 24 (logged)`         |
+| Today sync micro-label and chip | `Wed Oct 28 · SYNCED 37M` | the same, then `, sync now`       |
+| Coach history link              | `History · 3`             | `History, 3 unread, and inbox`    |
+| Settings data export            | `Export`                  | `Export all your data as JSON`    |
+
+The week strip's `role="group"` variant on Today is named by its author, not
+its content, so it keeps the plain sentence. axe joins visible text nodes
+without a separator, so the sleep strip and the journal buttons get a literal
+space between their two labels; it is invisible in their column layout.
+
+axe's rule needs real layout, so `axe()` under jsdom passes regardless.
+`src/test/label-in-name.ts` mirrors the rule (visible text without `.sr-only`,
+joined as axe joins it, tokens contiguous in the computed name) and the
+component tests use it; each new test was red before its fix. The surface
+capture's axe ratchet stays at a ceiling of 0.
+
+**Dependencies, within their ranges** (Dependabot's npm group, #275), among
+them Next.js 16.4.3, React 19.3.1, `@modelcontextprotocol/sdk` 1.32.2, the AI
+SDK packages, `@base-ui/react` 1.9, `lucide-react`, `recharts`, `pg`,
+`drizzle-orm` 0.45.4 and `playwright-core` 1.64.1 (Chromium revision 1248, the
+one the soak runner already has).
+
+**Dev tooling majors** (#277): TypeScript 6.0, ESLint 10, jsdom 30 and
+Vitest 5, with `@types/node` 22 to match the runtime.
+
+`npm audit --omit=dev`: 0 critical, 0 high, 4 moderate (the `drizzle-kit` →
+`esbuild` dev-server finding, unchanged).
+
+Migrations: none.
+
 ## v0.140.3 — 2026-10-28 — Better Auth 1.7
 
 ### What you will notice

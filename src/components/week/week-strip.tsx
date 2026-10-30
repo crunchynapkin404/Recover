@@ -226,6 +226,11 @@ export function WeekStrip({
         const weekday = WEEKDAY_NAMES[weekdayIndex(d.date)] ?? "";
         const shape = dayShape(d, maxMins);
         const label = accessibleLabel(weekday, d, shape);
+        // A link takes its name from what it says (WCAG 2.5.3, Label in Name):
+        // the column shows "Mo", so the name starts with "Mo" and a speech
+        // user can say what they see. The group variant below is named by
+        // its author, not its content, so it keeps the plain sentence.
+        const linkLabel = `${WEEKDAY_NARROW[i] ?? weekday}, ${label}`;
         // I2, final whole-branch review: these used to collapse onto one
         // `highlightDate` (selectedDate ?? today), so on Train — which
         // always passes selectedDate — the ring meant "open" and never
@@ -280,7 +285,7 @@ export function WeekStrip({
             data-open={isOpen ? "true" : undefined}
             href={hrefForDay(d.date)}
             title={label}
-            aria-label={label}
+            aria-label={linkLabel}
             aria-current={isOpen ? "true" : undefined}
             className={columnClassName}
           >

@@ -602,7 +602,8 @@ export default async function SettingsPage({
                 <a
                   href="/api/export"
                   download
-                  aria-label="Download all your data as JSON"
+                  // Starts with the visible "Export" (WCAG 2.5.3, Label in Name).
+                  aria-label="Export all your data as JSON"
                   className={dataButtonClass}
                 >
                   Export

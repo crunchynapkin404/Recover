@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { computeAccessibleName } from "dom-accessibility-api";
+import { labelInName } from "@/test/label-in-name";
 import { WeekStrip } from "./week-strip";
 import type { DaySlot, ScheduledWorkout } from "@/lib/week-plan/types";
 import { withPurpose } from "@/lib/training-plan";
@@ -259,9 +260,27 @@ describe('WeekStrip — Train\'s interactive bar strip (hrefForDay + marks="bars
     const thu = el.querySelector(
       'a[href="/train?day=2026-08-27"]'
     ) as HTMLElement;
+    // Starts with the visible "Th" (WCAG 2.5.3, Label in Name): a speech
+    // user says what they see, and "click Th" must reach this link.
     expect(computeAccessibleName(thu)).toBe(
-      "Thursday, 95 minutes, hard session, planned"
+      "Th, Thursday, 95 minutes, hard session, planned"
     );
+  });
+
+  it("puts each day's visible label inside its accessible name (Label in Name)", async () => {
+    const el = await render(
+      <WeekStrip
+        days={week}
+        selectedDate="2026-08-27"
+        hrefForDay={(d) => `/train?day=${d}`}
+        marks="bars"
+      />
+    );
+    const links = Array.from(el.querySelectorAll("a"));
+    expect(links).toHaveLength(7);
+    for (const a of links) {
+      expect(labelInName(a)).toMatchObject({ ok: true });
+    }
   });
 
   // A bar chart is not a label. Sighted athletes read height; everyone else
@@ -278,7 +297,7 @@ describe('WeekStrip — Train\'s interactive bar strip (hrefForDay + marks="bars
     const mon = el.querySelector(
       'a[href="/train?day=2026-08-24"]'
     ) as HTMLElement;
-    expect(computeAccessibleName(mon)).toBe("Monday, rest");
+    expect(computeAccessibleName(mon)).toBe("Mo, Monday, rest");
   });
 
   it("marks the selected day for assistive tech, not only in colour", async () => {
