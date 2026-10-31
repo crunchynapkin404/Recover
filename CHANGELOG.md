@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.142.0 — 2026-10-31 — A press that fails says so
+
+### What you will notice
+
+- **Train ▸ Week ▸ Plan setup:** when switching the plan style (Balanced /
+  Block-lite) or the season mode (Normal / Off-season / Start re-entry)
+  fails, a line under the switch now says so — "Couldn't change the plan
+  style. Nothing was changed — try again." — instead of the press looking
+  like it worked. With no active plan it says that instead: "There's no
+  active plan to change. Nothing was changed." Screen readers announce it.
+
+Nothing else changes for an athlete.
+
+### Under the hood
+
+**The failures were logged and never shown.** A plain `<form action>` must
+resolve to void, so `submitPlanStyleQuick` and `submitSeasonModeQuick` threw
+their `Result` away after logging it, and a rejected press looked identical
+to a saved one. Both are now `useActionState` actions returning
+`{ error: string | null }`; the log line stays. `docs/BASELINE.md` carried
+this as deferred UI work since v0.65.0.
+
+**The copy lives in the client, not the server.** The actions return the
+failure code; `quickActionMessage` turns it into words. Every failure they
+can return happens before anything is written, which is what makes "Nothing
+was changed" true for all of them.
+
+**The alert region is always in the DOM**, empty until a press fails: a live
+region inserted together with its text is not reliably announced. It sits
+beside the buttons and is not referenced by them, so each button's name is
+still exactly what it shows — v0.141.0's Label in Name fixes hold, and a test
+re-checks them after a failure.
+
+**Scope.** Only the two switches that render. The week adjustment
+(Ease / Deload / Boost / Skip) stays retired — the roadmap records that
+decision — and its unrendered `submitWeekAdjustmentQuick` is untouched.
+A server action that _throws_ (rather than returning a failure) still goes
+to the error boundary, exactly as before.
+
 ## v0.141.0 — 2026-10-28 — Say what you see
 
 ### What you will notice

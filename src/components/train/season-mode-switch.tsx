@@ -1,3 +1,8 @@
+"use client";
+
+import { useActionState } from "react";
+import type { QuickState } from "@/app/plan/actions";
+import { QuickActionError } from "./quick-action-error";
 import type { ReentryStage, SeasonMode } from "@/lib/season-mode/types";
 
 const MODE_LABEL: Record<SeasonMode, string> = {
@@ -30,50 +35,54 @@ export function SeasonModeSwitch({
 }: {
   effectiveSeasonMode: SeasonMode;
   reentryStage: ReentryStage;
-  action: (formData: FormData) => void | Promise<void>;
+  action: (state: QuickState, formData: FormData) => Promise<QuickState>;
 }) {
+  const [state, formAction] = useActionState(action, { error: null });
   return (
-    <div className="flex items-center gap-1 rounded-full border border-hairline bg-surface-selected p-1">
-      <span className="px-2 text-label font-semibold text-ink-secondary">
-        Season
-      </span>
-      {(["normal", "off_season"] as const).map((seasonMode) => {
-        const active = seasonMode === effectiveSeasonMode;
-        return (
-          <form key={seasonMode} action={action}>
-            <input type="hidden" name="seasonAction" value={seasonMode} />
+    <div className="flex flex-col items-start">
+      <div className="flex items-center gap-1 rounded-full border border-hairline bg-surface-selected p-1">
+        <span className="px-2 text-label font-semibold text-ink-secondary">
+          Season
+        </span>
+        {(["normal", "off_season"] as const).map((seasonMode) => {
+          const active = seasonMode === effectiveSeasonMode;
+          return (
+            <form key={seasonMode} action={formAction}>
+              <input type="hidden" name="seasonAction" value={seasonMode} />
+              <button
+                type="submit"
+                aria-pressed={active}
+                disabled={active}
+                className={`rounded-full px-2.5 py-1 text-label font-bold transition-colors ${
+                  active
+                    ? "bg-surface-overlay text-ink-primary"
+                    : "text-ink-muted hover:text-ink-secondary"
+                }`}
+              >
+                {MODE_LABEL[seasonMode]}
+              </button>
+            </form>
+          );
+        })}
+        {effectiveSeasonMode === "off_season" && reentryStage === "none" && (
+          <form action={formAction}>
+            <input type="hidden" name="seasonAction" value="begin_reentry" />
             <button
               type="submit"
-              aria-pressed={active}
-              disabled={active}
-              className={`rounded-full px-2.5 py-1 text-label font-bold transition-colors ${
-                active
-                  ? "bg-surface-overlay text-ink-primary"
-                  : "text-ink-muted hover:text-ink-secondary"
-              }`}
+              aria-pressed={false}
+              className="rounded-full px-2.5 py-1 text-label font-bold text-ink-muted transition-colors hover:text-ink-secondary"
             >
-              {MODE_LABEL[seasonMode]}
+              Start re-entry
             </button>
           </form>
-        );
-      })}
-      {effectiveSeasonMode === "off_season" && reentryStage === "none" && (
-        <form action={action}>
-          <input type="hidden" name="seasonAction" value="begin_reentry" />
-          <button
-            type="submit"
-            aria-pressed={false}
-            className="rounded-full px-2.5 py-1 text-label font-bold text-ink-muted transition-colors hover:text-ink-secondary"
-          >
-            Start re-entry
-          </button>
-        </form>
-      )}
-      {reentryStage !== "none" && (
-        <span className="rounded-full bg-chart-2/10 px-2.5 py-1 text-label font-bold text-chart-2">
-          {reentryStage === "week_1" ? "Re-entry week 1" : "Re-entry week 2"}
-        </span>
-      )}
+        )}
+        {reentryStage !== "none" && (
+          <span className="rounded-full bg-chart-2/10 px-2.5 py-1 text-label font-bold text-chart-2">
+            {reentryStage === "week_1" ? "Re-entry week 1" : "Re-entry week 2"}
+          </span>
+        )}
+      </div>
+      <QuickActionError error={state.error} subject="season mode" />
     </div>
   );
 }

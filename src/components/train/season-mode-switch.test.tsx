@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { SeasonModeSwitch } from "./season-mode-switch";
 
-const noop = () => {};
+const noop = async () => ({ error: null });
 
 describe("SeasonModeSwitch", () => {
   it("renders both modes and the caption", () => {
