@@ -85,9 +85,11 @@ direct integration, Cycle-Aware Readiness, and the whole "Stronger Together"
 sharing lane (per-pair consent, group view, coach seat, weekly digest,
 shareable cards).
 
-**Deferred UI work.** Quick-action failures are logged but not surfaced to the
+~~**Deferred UI work.** Quick-action failures are logged but not surfaced to the
 athlete; showing them needs a `useActionState` refactor those switches do not
-have.
+have.~~ **Closed in v0.142.0** for the two switches that still render (plan
+style, season mode): a failed press now shows an alert under the switch. The
+week adjustment switch stays retired; see `docs/ROADMAP.md`.
 
 ## Structural lessons worth carrying forward
 

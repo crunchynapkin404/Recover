@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { PlanStyleSwitch } from "./plan-style-switch";
 
-const noop = () => {};
+const noop = async () => ({ error: null });
 
 describe("PlanStyleSwitch", () => {
   it("renders both styles and the caption", () => {

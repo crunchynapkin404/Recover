@@ -39,21 +39,26 @@ import type { PreviewResult } from "@/lib/plan-preview";
 type Result = { ok: true } | { ok: false; error: string };
 
 /**
- * Next form actions must resolve to void, so the `Result` these quick
- * switches return had nowhere to go and every failure — a stale week, an
- * invalid value, no active plan — presented to the athlete as a successful
- * press. Logging is the floor, not the fix: surfacing them in the UI needs
- * `useActionState`, which is a client-component change these switches do
- * not have yet.
+ * What a Plan setup switch's `useActionState` holds: the failure code of the
+ * last press, or null once a press succeeds. The switches turn the code into
+ * words (`quickActionMessage`), so the server never decides copy.
+ */
+export type QuickState = { error: string | null };
+
+/**
+ * A plain <form action> must resolve to void, so before these returned
+ * `QuickState` every failure — an invalid value, no active plan — presented
+ * to the athlete as a successful press. The log stays: it is how a failure
+ * is diagnosable after the athlete has moved on.
  */
 async function runQuick(
   name: string,
   run: () => Promise<Result>
-): Promise<void> {
+): Promise<QuickState> {
   const result = await run();
-  if (!result.ok) {
-    logger.warn("quick action failed", { action: name, error: result.error });
-  }
+  if (result.ok) return { error: null };
+  logger.warn("quick action failed", { action: name, error: result.error });
+  return { error: result.error };
 }
 
 function asPlanStyle(value: FormDataEntryValue | null): PlanStyle | null {
@@ -125,8 +130,11 @@ export async function setPlanStyleQuick(formData: FormData): Promise<Result> {
   return { ok: true };
 }
 
-export async function submitPlanStyleQuick(formData: FormData): Promise<void> {
-  await runQuick("submitPlanStyleQuick", () => setPlanStyleQuick(formData));
+export async function submitPlanStyleQuick(
+  _prev: QuickState,
+  formData: FormData
+): Promise<QuickState> {
+  return runQuick("submitPlanStyleQuick", () => setPlanStyleQuick(formData));
 }
 
 export async function setSeasonModeQuick(formData: FormData): Promise<Result> {
@@ -160,8 +168,11 @@ export async function setSeasonModeQuick(formData: FormData): Promise<Result> {
   return { ok: true };
 }
 
-export async function submitSeasonModeQuick(formData: FormData): Promise<void> {
-  await runQuick("submitSeasonModeQuick", () => setSeasonModeQuick(formData));
+export async function submitSeasonModeQuick(
+  _prev: QuickState,
+  formData: FormData
+): Promise<QuickState> {
+  return runQuick("submitSeasonModeQuick", () => setSeasonModeQuick(formData));
 }
 
 export async function setWeekAdjustmentQuick(
